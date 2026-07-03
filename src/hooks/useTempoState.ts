@@ -1153,16 +1153,31 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   };
 
   const sidebarProps = useMemo<SidebarProps>(() => {
-    const weekStart = startOfWeek(ctx.ref);
-    const dayCount = ctx.showWeekend ? 7 : 5;
-    const weekISOs = new Set<string>();
-    for (let day = 0; day < dayCount; day += 1) {
-      weekISOs.add(iso(addDays(weekStart, day)));
+    let periodLabel: string;
+    let periodEntries: Entry[];
+
+    if (ctx.isDay) {
+      periodLabel = 'Today';
+      periodEntries = ctx.S.entries.filter((entry) => entry.date === ctx.S.refISO);
+    } else if (ctx.isMonth) {
+      periodLabel = 'This month';
+      periodEntries = ctx.S.entries.filter((entry) => {
+        const date = parseISO(entry.date);
+        return date.getFullYear() === ctx.ref.getFullYear() && date.getMonth() === ctx.ref.getMonth();
+      });
+    } else {
+      periodLabel = 'This week';
+      const weekStart = startOfWeek(ctx.ref);
+      const dayCount = ctx.showWeekend ? 7 : 5;
+      const weekISOs = new Set<string>();
+      for (let day = 0; day < dayCount; day += 1) {
+        weekISOs.add(iso(addDays(weekStart, day)));
+      }
+      periodEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
     }
 
-    const weekEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
-    const weekMinutes = weekEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
-    const weekEarn = weekEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+    const periodMinutes = periodEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const periodEarn = periodEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const { label: syncLabel, color: syncColor } = getSyncStatusMeta(ctx.S.demoMode, ctx.S.syncStatus);
 
@@ -1188,9 +1203,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onNavProjects: () => setPage('projects'),
       onNavCustomers: () => setPage('customers'),
       onNavExport: () => openExport(null),
-      weekHours: fmtH(weekMinutes),
-      weekDaysStr: (weekMinutes / 60 / ctx.hpd).toFixed(1),
-      weekEarnStr: fmtEUR(weekEarn),
+      periodLabel,
+      weekHours: fmtH(periodMinutes),
+      weekDaysStr: (periodMinutes / 60 / ctx.hpd).toFixed(1),
+      weekEarnStr: fmtEUR(periodEarn),
       syncColor,
       syncLabel,
       onOpenSettings: openSettings,

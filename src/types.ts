@@ -121,6 +121,7 @@ export interface SidebarProps {
   onNavProjects: () => void;
   onNavCustomers: () => void;
   onNavExport: () => void;
+  periodLabel: string;
   weekHours: string;
   weekDaysStr: string;
   weekEarnStr: string;

@@ -94,6 +94,7 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       weekHours: '0h',
       weekDaysStr: '0',
       weekEarnStr: '€0',
+      periodLabel: 'This week',
       syncColor: '#9ca3af',
       syncLabel: 'Saved in browser',
       onOpenSettings: vi.fn(),

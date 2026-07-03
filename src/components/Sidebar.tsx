@@ -14,6 +14,7 @@ const Sidebar: FC<SidebarProps> = ({
   weekHours,
   weekDaysStr,
   weekEarnStr,
+  periodLabel,
   syncColor,
   syncLabel,
   onOpenSettings,
@@ -123,7 +124,7 @@ const Sidebar: FC<SidebarProps> = ({
             fontFamily: "'Geist Mono',monospace",
           }}
         >
-          This week
+          {periodLabel}
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '8px' }}>
           <span style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.02em' }}>{weekHours}</span>
