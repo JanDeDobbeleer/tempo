@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type MouseEvent } from 'react';
 
+const DEV_MODE = import.meta.env.DEV;
+
 import { addDays, addMonths, fmtFullDate, fmtMonthYear, fmtShortDateYear, iso, isoWeekNumber, parseISO, startOfWeek } from '../lib/dates';
 import { fmtEUR, fmtH, fmtDays, fmtBytes, hexToRgba, hoursToMinutes, minutesToHours, uid } from '../lib/format';
 import { addRatePeriod, currentRatePeriod, hasOverlap, rateForDate, sortRates } from '../lib/rates';
@@ -290,6 +292,10 @@ function getStoreData(demoMode: boolean): PersistedData {
 }
 
 function getSyncStatusMeta(demoMode: boolean, syncStatus: SyncStatus): { label: string; color: string } {
+  if (DEV_MODE) {
+    return { label: 'Local (dev mode)', color: '#9ca3af' };
+  }
+
   if (demoMode) {
     return { label: 'Demo mode (not synced)', color: '#9ca3af' };
   }
@@ -751,7 +757,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
 
   const pushStateNow = useCallback(async () => {
     const current = stateRef.current;
-    if (current.demoMode) {
+    if (DEV_MODE || current.demoMode) {
       return;
     }
 
@@ -793,7 +799,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   }, []);
 
   const pullStateNow = useCallback(async () => {
-    if (stateRef.current.demoMode) {
+    if (DEV_MODE || stateRef.current.demoMode) {
       return;
     }
 
@@ -1192,13 +1198,13 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   }, []);
 
   useEffect(() => {
-    if (!state.demoMode) {
+    if (!DEV_MODE && !state.demoMode) {
       void pullStateNow();
     }
   }, [state.demoMode, pullStateNow]);
 
   useEffect(() => {
-    if (state.demoMode) {
+    if (DEV_MODE || state.demoMode) {
       return undefined;
     }
 
@@ -1446,7 +1452,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       demoMode: ctx.S.demoMode,
       onToggleDemoMode,
       demoModeHint: 'Preview Tempo with example projects, customers and time entries. Your real data stays untouched and you can switch back anytime.',
-      syncDisabled: ctx.S.demoMode,
+      syncDisabled: DEV_MODE || ctx.S.demoMode,
       syncStatusLabel,
       syncStatusColor,
       onSyncNow: () => {
