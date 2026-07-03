@@ -1,18 +1,8 @@
-import type { PersistedData } from '../types';
+import type { AttachmentRef, PersistedData } from '../types';
 
 const STORAGE_KEY = 'tempo.v1';
 const DEMO_STORAGE_KEY = 'tempo.demo.v1';
 const DEMO_MODE_KEY = 'tempo.demoMode';
-const PAT_KEY = 'tempo.gh.pat';
-const GIST_ID_KEY = 'tempo.gh.gistId';
-
-function readStorage(key: string): string {
-  try {
-    return window.localStorage.getItem(key) || '';
-  } catch {
-    return '';
-  }
-}
 
 function isPersistedData(value: unknown): value is PersistedData {
   if (!value || typeof value !== 'object') {
@@ -24,6 +14,11 @@ function isPersistedData(value: unknown): value is PersistedData {
     && Array.isArray(candidate.projects)
     && Array.isArray(candidate.entries);
 }
+
+// ─── local cache (localStorage) ──────────────────────────────────────────
+// Used as an offline-first cache: reads happen instantly on load, writes
+// happen on every change. The Azure Functions API (see below) is the source
+// of truth once the app is online and authenticated.
 
 export function loadData(): PersistedData | null {
   return loadPersistedData(STORAGE_KEY);
@@ -103,121 +98,137 @@ function clearPersistedData(key: string): void {
   }
 }
 
-export function getPAT(): string {
-  return readStorage(PAT_KEY);
-}
+// ─── remote sync (Azure Functions API) ───────────────────────────────────
+// The whole PersistedData document is stored as one JSON blob behind
+// GET/PUT /api/state. Optimistic concurrency is handled via ETag/If-Match:
+// a 412 response means someone else (another tab/device) saved in between,
+// so ConflictError is thrown and the caller should reload before retrying.
 
-export function getGistId(): string {
-  return readStorage(GIST_ID_KEY);
-}
-
-export function savePAT(pat: string): void {
-  try {
-    window.localStorage.setItem(PAT_KEY, pat);
-  } catch {
-    // Ignore storage failures to match the legacy runtime behavior.
+export class ConflictError extends Error {
+  constructor() {
+    super('State changed since it was last loaded. Reload before saving again.');
+    this.name = 'ConflictError';
   }
 }
 
-export function saveGistId(id: string): void {
-  try {
-    window.localStorage.setItem(GIST_ID_KEY, id);
-  } catch {
-    // Ignore storage failures to match the legacy runtime behavior.
-  }
+export interface RemoteState {
+  data: PersistedData;
+  etag: string;
 }
 
-export function removePAT(): void {
+async function parseErrorMessage(response: Response): Promise<string> {
   try {
-    window.localStorage.removeItem(PAT_KEY);
+    const body: unknown = await response.json();
+    if (body && typeof body === 'object' && 'message' in body) {
+      return String((body as { message?: unknown }).message);
+    }
   } catch {
-    // Ignore storage failures to match the legacy runtime behavior.
+    // Ignore parse failures below.
   }
+  return `Request failed with status ${response.status}`;
 }
 
-export function removeGistId(): void {
-  try {
-    window.localStorage.removeItem(GIST_ID_KEY);
-  } catch {
-    // Ignore storage failures to match the legacy runtime behavior.
+export async function fetchState(): Promise<RemoteState> {
+  const response = await fetch('/api/state', { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
   }
+
+  const etag = response.headers.get('etag') ?? '';
+  const parsed: unknown = await response.json();
+  if (!isPersistedData(parsed)) {
+    throw new Error('Invalid data format returned from server.');
+  }
+
+  return { data: parsed, etag };
 }
 
-export async function syncToGist(
-  data: PersistedData,
-  pat: string,
-  gistId: string,
-): Promise<{ id: string }> {
-  const content = JSON.stringify(
-    {
+export async function saveState(data: PersistedData, etag: string): Promise<{ etag: string }> {
+  const response = await fetch('/api/state', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(etag ? { 'If-Match': etag } : {}),
+    },
+    body: JSON.stringify({
       customers: data.customers,
       projects: data.projects,
       entries: data.entries,
-    },
-    null,
-    2,
-  );
-
-  const url = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists';
-  const method = gistId ? 'PATCH' : 'POST';
-  const body = gistId
-    ? { files: { 'tempo-data.json': { content } } }
-    : {
-        description: 'Tempo time tracking data',
-        public: false,
-        files: { 'tempo-data.json': { content } },
-      };
-
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `token ${pat}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
+    }),
   });
 
-  const json: unknown = await response.json();
+  if (response.status === 412) {
+    throw new ConflictError();
+  }
+
   if (!response.ok) {
-    const message = typeof json === 'object' && json && 'message' in json ? String((json as { message?: unknown }).message) : 'API error';
-    throw new Error(message);
+    throw new Error(await parseErrorMessage(response));
   }
 
-  const id = typeof json === 'object' && json && 'id' in json ? String((json as { id: unknown }).id) : '';
-  if (!id) {
-    throw new Error('Missing gist id');
-  }
-
-  return { id };
+  return { etag: response.headers.get('etag') ?? '' };
 }
 
-export async function loadFromGist(pat: string, gistId: string): Promise<PersistedData> {
-  const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-    headers: {
-      Authorization: `token ${pat}`,
-    },
+// ─── attachments (Azure Blob Storage via SAS) ────────────────────────────
+
+interface AttachmentUploadTicket {
+  attachmentId: string;
+  blobPath: string;
+  uploadUrl: string;
+  expiresOn: string;
+  fileName: string;
+  contentType: string;
+}
+
+export async function uploadAttachment(entryId: string, file: File): Promise<AttachmentRef> {
+  const ticketResponse = await fetch('/api/attachments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entryId, fileName: file.name, contentType: file.type || 'application/octet-stream' }),
   });
 
-  const json: unknown = await response.json();
+  if (!ticketResponse.ok) {
+    throw new Error(await parseErrorMessage(ticketResponse));
+  }
+
+  const ticket = (await ticketResponse.json()) as AttachmentUploadTicket;
+
+  const uploadResponse = await fetch(ticket.uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'x-ms-blob-type': 'BlockBlob',
+      'Content-Type': ticket.contentType,
+    },
+    body: file,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error('Failed to upload attachment to storage.');
+  }
+
+  return {
+    id: ticket.attachmentId,
+    fileName: ticket.fileName,
+    contentType: ticket.contentType,
+    size: file.size,
+  };
+}
+
+export async function getAttachmentDownloadUrl(entryId: string, attachmentId: string): Promise<string> {
+  const response = await fetch(`/api/attachments/${entryId}/${attachmentId}`, {
+    headers: { Accept: 'application/json' },
+  });
+
   if (!response.ok) {
-    const message = typeof json === 'object' && json && 'message' in json ? String((json as { message?: unknown }).message) : 'API error';
-    throw new Error(message);
+    throw new Error(await parseErrorMessage(response));
   }
 
-  const raw = typeof json === 'object' && json && 'files' in json
-    ? (json as {
-        files?: Record<string, { content?: string }>;
-      }).files?.['tempo-data.json']?.content
-    : undefined;
+  const body = (await response.json()) as { downloadUrl: string };
+  return body.downloadUrl;
+}
 
-  if (!raw) {
-    throw new Error('File not found in gist');
+export async function deleteAttachment(entryId: string, attachmentId: string): Promise<void> {
+  const response = await fetch(`/api/attachments/${entryId}/${attachmentId}`, { method: 'DELETE' });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(await parseErrorMessage(response));
   }
-
-  const parsed: unknown = JSON.parse(raw);
-  if (!isPersistedData(parsed)) {
-    throw new Error('Invalid data format');
-  }
-
-  return parsed;
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type MouseEvent, type PointerEvent } from 'react';
 
 import { addDays, addMonths, fmtFullDate, fmtMonthYear, fmtShortDate, fmtShortDateYear, iso, parseISO, startOfWeek } from '../lib/dates';
-import { fmtEUR, fmtH, fmtMin, hexToRgba, parseHM, uid } from '../lib/format';
+import { fmtEUR, fmtH, fmtMin, fmtBytes, hexToRgba, parseHM, uid } from '../lib/format';
 import { addRatePeriod, currentRatePeriod, hasOverlap, rateForDate, sortRates } from '../lib/rates';
 import * as store from '../lib/store';
 import type {
@@ -18,7 +18,6 @@ import type {
   Entry,
   EntryBlockVM,
   EntryForm,
-  GistStatus,
   HourRowVM,
   ModalProps,
   ModalState,
@@ -34,6 +33,7 @@ import type {
   RatePeriodRowVM,
   SettingsViewProps,
   SidebarProps,
+  SyncStatus,
   TempoSettings,
   TempoViewModel,
   View,
@@ -62,10 +62,11 @@ type TempoState = PersistedData & {
   modal: ModalState | null;
   drag: DragState | null;
   demoMode: boolean;
-  githubPAT: string;
-  patInput: string;
-  gistId: string;
-  gistStatus: GistStatus;
+  syncStatus: SyncStatus;
+  stateEtag: string;
+  attachmentUploading: boolean;
+  attachmentError: string;
+  userDisplayName: string;
   selectedCustomerId: string | null;
   selectedProjectId: string | null;
   projectDraft: ProjectForm | null;
@@ -74,7 +75,7 @@ type TempoState = PersistedData & {
 
 type ProjectOrigin = { page: 'projects' } | { page: 'customerDetail'; customerId: string };
 
-type EntryDraft = Pick<Entry, 'projectId' | 'date' | 'start' | 'end' | 'comment'> & Partial<Pick<Entry, 'id'>>;
+type EntryDraft = Pick<Entry, 'projectId' | 'date' | 'start' | 'end' | 'comment'> & Partial<Pick<Entry, 'id' | 'attachments'>>;
 
 type RenderCtx = {
   S: TempoState;
@@ -191,7 +192,6 @@ function createEmptyData(): PersistedData {
 
 function createStateFromData(data: PersistedData, demoMode: boolean): TempoState {
   const today = new Date();
-  const githubPAT = store.getPAT();
 
   return {
     page: 'track',
@@ -203,10 +203,11 @@ function createStateFromData(data: PersistedData, demoMode: boolean): TempoState
     modal: null,
     drag: null,
     demoMode,
-    githubPAT,
-    patInput: githubPAT,
-    gistId: store.getGistId(),
-    gistStatus: 'idle',
+    syncStatus: 'idle',
+    stateEtag: '',
+    attachmentUploading: false,
+    attachmentError: '',
+    userDisplayName: '',
     selectedCustomerId: null,
     selectedProjectId: null,
     projectDraft: null,
@@ -222,7 +223,7 @@ function makeEntry(
   end: number,
   comment: string,
 ): Entry {
-  return { id, date, projectId, start, end, comment };
+  return { id, date, projectId, start, end, comment, attachments: [] };
 }
 
 function createDemoSeed(): PersistedData {
@@ -280,24 +281,28 @@ function getStoreData(demoMode: boolean): PersistedData {
   return store.loadData() || createEmptyData();
 }
 
-function getSyncStatusMeta(githubPAT: string, gistStatus: GistStatus): { label: string; color: string } {
-  if (!githubPAT) {
-    return { label: 'Saved in browser', color: '#9ca3af' };
+function getSyncStatusMeta(demoMode: boolean, syncStatus: SyncStatus): { label: string; color: string } {
+  if (demoMode) {
+    return { label: 'Demo mode (not synced)', color: '#9ca3af' };
   }
 
-  if (gistStatus === 'syncing') {
+  if (syncStatus === 'syncing') {
     return { label: 'Syncing…', color: '#9ca3af' };
   }
 
-  if (gistStatus === 'synced') {
-    return { label: 'Synced to Gist', color: '#16a34a' };
+  if (syncStatus === 'synced') {
+    return { label: 'Synced', color: '#16a34a' };
   }
 
-  if (gistStatus === 'error') {
+  if (syncStatus === 'conflict') {
+    return { label: 'Reloaded newer data', color: '#d97706' };
+  }
+
+  if (syncStatus === 'error') {
     return { label: 'Sync failed', color: '#dc2626' };
   }
 
-  return { label: 'Gist connected', color: '#9ca3af' };
+  return { label: 'Saved in browser', color: '#9ca3af' };
 }
 
 function createInitialState(): TempoState {
@@ -383,16 +388,11 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   const stateRef = useRef(state);
   const rectRef = useRef<DOMRect | null>(null);
   const draggingRef = useRef(false);
-  const gistRef = useRef({ pat: state.githubPAT, gistId: state.gistId });
-  const skipNextSyncRef = useRef(false);
+  const skipNextPushRef = useRef(false);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-
-  useEffect(() => {
-    gistRef.current = { pat: state.githubPAT, gistId: state.gistId };
-  }, [state.githubPAT, state.gistId]);
 
   const openEntry = useCallback((entry: EntryDraft, isNew: boolean) => {
     setState((current) => ({
@@ -401,12 +401,13 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         type: 'entry',
         isNew,
         form: {
-          id: entry.id || null,
+          id: entry.id || uid(),
           projectId: entry.projectId,
           date: entry.date,
           start: fmtMin(entry.start),
           end: fmtMin(entry.end),
           comment: entry.comment || '',
+          attachments: entry.attachments ?? [],
         },
       },
     }));
@@ -628,61 +629,140 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     backFromProjectDetail();
   }, [backFromProjectDetail]);
 
-  const syncToGistNow = useCallback(async (patOverride?: string, gistIdOverride?: string) => {
+  const pushStateNow = useCallback(async () => {
     const current = stateRef.current;
     if (current.demoMode) {
       return;
     }
 
-    const pat = patOverride ?? gistRef.current.pat;
-    const gistId = gistIdOverride ?? gistRef.current.gistId;
-    if (!pat) {
-      return;
-    }
+    const data: PersistedData = {
+      customers: current.customers,
+      projects: current.projects,
+      entries: current.entries,
+    };
 
-    setState((snapshot) => ({ ...snapshot, gistStatus: 'syncing' }));
+    setState((snapshot) => ({ ...snapshot, syncStatus: 'syncing' }));
 
     try {
-      const result = await store.syncToGist(
-        {
-          customers: current.customers,
-          projects: current.projects,
-          entries: current.entries,
-        },
-        pat,
-        gistId,
-      );
-
-      if (!gistId) {
-        store.saveGistId(result.id);
-        setState((snapshot) => ({ ...snapshot, gistId: result.id, gistStatus: 'synced' }));
-      } else {
-        setState((snapshot) => ({ ...snapshot, gistStatus: 'synced' }));
+      const result = await store.saveState(data, stateRef.current.stateEtag);
+      setState((snapshot) => ({ ...snapshot, stateEtag: result.etag, syncStatus: 'synced' }));
+    } catch (error) {
+      if (error instanceof store.ConflictError) {
+        // Someone else (another tab/device) saved in between. Reload the
+        // remote copy rather than blindly overwriting it.
+        try {
+          const remote = await store.fetchState();
+          setState((snapshot) => ({
+            ...snapshot,
+            customers: remote.data.customers,
+            projects: remote.data.projects,
+            entries: remote.data.entries,
+            stateEtag: remote.etag,
+            syncStatus: 'conflict',
+          }));
+        } catch {
+          setState((snapshot) => ({ ...snapshot, syncStatus: 'error' }));
+        }
+        return;
       }
-    } catch {
-      setState((snapshot) => ({ ...snapshot, gistStatus: 'error' }));
+
+      setState((snapshot) => ({ ...snapshot, syncStatus: 'error' }));
     }
   }, []);
 
-  const loadFromGistNow = useCallback(async (pat: string, gistId: string) => {
-    if (!pat || !gistId || stateRef.current.demoMode) {
+  const pullStateNow = useCallback(async () => {
+    if (stateRef.current.demoMode) {
       return;
     }
 
-    setState((snapshot) => ({ ...snapshot, gistStatus: 'syncing' }));
+    setState((snapshot) => ({ ...snapshot, syncStatus: 'syncing' }));
 
     try {
-      const data = await store.loadFromGist(pat, gistId);
+      const remote = await store.fetchState();
       setState((snapshot) => ({
         ...snapshot,
-        customers: data.customers,
-        projects: data.projects,
-        entries: data.entries,
-        gistStatus: 'synced',
+        customers: remote.data.customers,
+        projects: remote.data.projects,
+        entries: remote.data.entries,
+        stateEtag: remote.etag,
+        syncStatus: 'synced',
       }));
     } catch {
-      setState((snapshot) => ({ ...snapshot, gistStatus: 'error' }));
+      setState((snapshot) => ({ ...snapshot, syncStatus: 'error' }));
     }
+  }, []);
+
+  const onAddAttachments = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    const modal = stateRef.current.modal;
+    if (!files || files.length === 0 || !modal || modal.type !== 'entry') {
+      return;
+    }
+
+    const entryId = (modal.form as EntryForm).id;
+    if (!entryId) {
+      return;
+    }
+
+    setState((current) => ({ ...current, attachmentUploading: true, attachmentError: '' }));
+
+    try {
+      for (const file of Array.from(files)) {
+        const attachment = await store.uploadAttachment(entryId, file);
+        setState((current) => {
+          if (!current.modal || current.modal.type !== 'entry') {
+            return current;
+          }
+          const form = current.modal.form as EntryForm;
+          return {
+            ...current,
+            modal: { ...current.modal, form: { ...form, attachments: [...form.attachments, attachment] } },
+          };
+        });
+      }
+      setState((current) => ({ ...current, attachmentUploading: false }));
+    } catch {
+      setState((current) => ({ ...current, attachmentUploading: false, attachmentError: 'Failed to upload one or more files.' }));
+    } finally {
+      event.target.value = '';
+    }
+  }, []);
+
+  const onDeleteAttachment = useCallback((attachmentId: string) => {
+    const modal = stateRef.current.modal;
+    if (!modal || modal.type !== 'entry') {
+      return;
+    }
+
+    const entryId = (modal.form as EntryForm).id;
+    if (!entryId) {
+      return;
+    }
+
+    void store.deleteAttachment(entryId, attachmentId);
+    setState((current) => {
+      if (!current.modal || current.modal.type !== 'entry') {
+        return current;
+      }
+      const form = current.modal.form as EntryForm;
+      return {
+        ...current,
+        modal: { ...current.modal, form: { ...form, attachments: form.attachments.filter((item) => item.id !== attachmentId) } },
+      };
+    });
+  }, []);
+
+  const onDownloadAttachment = useCallback(async (entryId: string, attachmentId: string) => {
+    try {
+      const url = await store.getAttachmentDownloadUrl(entryId, attachmentId);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      setState((current) => ({ ...current, attachmentError: 'Failed to open attachment.' }));
+    }
+  }, []);
+
+  const signOut = useCallback(() => {
+    window.location.href = '/.auth/logout?post_logout_redirect_uri=/';
   }, []);
 
   const saveModal = useCallback(() => {
@@ -699,17 +779,18 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         return;
       }
 
+      const id = form.id ?? uid();
       setState((current) => ({
         ...current,
-        entries: form.id
+        entries: current.entries.some((entry) => entry.id === id)
           ? current.entries.map((entry) => (
-              entry.id === form.id
-                ? { ...entry, projectId: form.projectId, date: form.date, start, end, comment: form.comment }
+              entry.id === id
+                ? { ...entry, projectId: form.projectId, date: form.date, start, end, comment: form.comment, attachments: form.attachments }
                 : entry
             ))
           : [
               ...current.entries,
-              { id: uid(), projectId: form.projectId, date: form.date, start, end, comment: form.comment },
+              { id, projectId: form.projectId, date: form.date, start, end, comment: form.comment, attachments: form.attachments },
             ],
         modal: null,
       }));
@@ -762,6 +843,11 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         return;
       }
 
+      const attachments = (modal.form as EntryForm).attachments;
+      attachments.forEach((attachment) => {
+        void store.deleteAttachment(id, attachment.id);
+      });
+
       setState((current) => ({
         ...current,
         entries: current.entries.filter((entry) => entry.id !== id),
@@ -787,18 +873,12 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     });
   }, []);
 
-  const disconnectGist = useCallback(() => {
-    store.removePAT();
-    store.removeGistId();
-    setState((current) => ({ ...current, githubPAT: '', patInput: '', gistId: '', gistStatus: 'idle' }));
-  }, []);
-
   const resetData = useCallback(() => {
     if (!window.confirm('Delete all data? This cannot be undone.')) {
       return;
     }
 
-    skipNextSyncRef.current = true;
+    skipNextPushRef.current = true;
     setState((current) => {
       if (current.demoMode) {
         store.clearDemoData();
@@ -812,7 +892,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           page: 'track',
           modal: null,
           drag: null,
-          gistStatus: 'idle',
+          syncStatus: 'idle',
           selectedCustomerId: null,
           selectedProjectId: null,
           projectDraft: null,
@@ -830,7 +910,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         page: 'track',
         modal: null,
         drag: null,
-        gistStatus: 'idle',
+        syncStatus: 'idle',
         selectedCustomerId: null,
         selectedProjectId: null,
         projectDraft: null,
@@ -853,7 +933,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         demoMode: nextDemoMode,
         modal: null,
         drag: null,
-        gistStatus: 'idle',
+        syncStatus: 'idle',
         selectedCustomerId: null,
         selectedProjectId: null,
         projectDraft: null,
@@ -957,28 +1037,44 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     store.saveData(data);
   }, [state.customers, state.demoMode, state.entries, state.projects]);
 
+  // Fetch the current user's identity once on mount so Settings can show who's
+  // signed in (see the "owner" role gate in staticwebapp.config.json).
   useEffect(() => {
-    if (!state.demoMode && state.githubPAT && state.gistId) {
-      void loadFromGistNow(state.githubPAT, state.gistId);
-    }
-  }, [loadFromGistNow, state.demoMode, state.githubPAT, state.gistId]);
+    fetch('/.auth/me')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { clientPrincipal?: { userDetails?: string } } | null) => {
+        const userDetails = body?.clientPrincipal?.userDetails;
+        if (userDetails) {
+          setState((current) => ({ ...current, userDisplayName: userDetails }));
+        }
+      })
+      .catch(() => {
+        // No auth proxy in local dev; ignore.
+      });
+  }, []);
 
   useEffect(() => {
-    if (state.demoMode || !state.githubPAT) {
+    if (!state.demoMode) {
+      void pullStateNow();
+    }
+  }, [state.demoMode, pullStateNow]);
+
+  useEffect(() => {
+    if (state.demoMode) {
       return undefined;
     }
 
-    if (skipNextSyncRef.current) {
-      skipNextSyncRef.current = false;
+    if (skipNextPushRef.current) {
+      skipNextPushRef.current = false;
       return undefined;
     }
 
     const timer = window.setTimeout(() => {
-      void syncToGistNow();
+      void pushStateNow();
     }, 1500);
 
     return () => window.clearTimeout(timer);
-  }, [state.customers, state.demoMode, state.entries, state.githubPAT, state.projects, syncToGistNow]);
+  }, [state.customers, state.demoMode, state.entries, state.projects, pushStateNow]);
 
   const hpd = getHoursPerDay(settings);
   const ref = parseISO(state.refISO);
@@ -1047,7 +1143,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const weekMinutes = weekEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
     const weekEarn = weekEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
-    const { label: syncLabel, color: syncColor } = getSyncStatusMeta(ctx.S.githubPAT, ctx.S.gistStatus);
+    const { label: syncLabel, color: syncColor } = getSyncStatusMeta(ctx.S.demoMode, ctx.S.syncStatus);
 
     return {
       logoStyle: {
@@ -1157,7 +1253,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       headerSubtitle = `${ctx.S.projects.length} active`;
     } else if (ctx.isSettings) {
       headerTitle = 'Settings';
-      headerSubtitle = 'Demo mode, GitHub sync and data controls';
+      headerSubtitle = 'Demo mode, Azure sync and data controls';
     } else if (ctx.isCustomers) {
       headerTitle = 'Customers';
       headerSubtitle = `${ctx.S.customers.length} total`;
@@ -1221,17 +1317,12 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     };
   }, [ctx, openCustomer, openNewEntry, openProjectDetail, setRefISO, setView]);
 
-  const onPatChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setState((current) => ({ ...current, patInput: value }));
-  }, []);
-
   const settingsProps = useMemo<SettingsViewProps | null>(() => {
     if (!ctx.isSettings) {
       return null;
     }
 
-    const { label: gistStatusLabel, color: gistStatusColor } = getSyncStatusMeta(ctx.S.githubPAT, ctx.S.gistStatus);
+    const { label: syncStatusLabel, color: syncStatusColor } = getSyncStatusMeta(ctx.S.demoMode, ctx.S.syncStatus);
 
     return {
       onBack: () => setPage('track'),
@@ -1239,46 +1330,16 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onToggleDemoMode,
       demoModeHint: 'Preview Tempo with example projects, customers and time entries. Your real data stays untouched and you can switch back anytime.',
       syncDisabled: ctx.S.demoMode,
-      patValue: ctx.S.patInput,
-      onPatChange,
-      gistIdLabel: ctx.S.gistId ? `${ctx.S.gistId.slice(0, 8)}…` : 'Not yet created',
-      gistConnected: Boolean(ctx.S.githubPAT),
-      gistStatusLabel,
-      gistStatusColor,
-      onConnect: () => {
-        const pat = ctx.S.patInput.trim();
-        if (pat) {
-          store.savePAT(pat);
-        } else {
-          store.removePAT();
-          store.removeGistId();
-        }
-
-        const nextGistId = pat ? ctx.S.gistId : '';
-        setState((current) => ({
-          ...current,
-          githubPAT: pat,
-          patInput: pat,
-          gistId: nextGistId,
-          gistStatus: 'idle',
-        }));
-
-        if (pat) {
-          void syncToGistNow(pat, ctx.S.gistId);
-        }
-      },
+      syncStatusLabel,
+      syncStatusColor,
       onSyncNow: () => {
-        void syncToGistNow();
+        void pushStateNow();
       },
-      onRestoreFromGist: () => {
-        if (ctx.S.githubPAT && ctx.S.gistId) {
-          void loadFromGistNow(ctx.S.githubPAT, ctx.S.gistId);
-        }
-      },
-      onDisconnect: disconnectGist,
+      signedInAs: ctx.S.userDisplayName,
+      onSignOut: signOut,
       onDeleteAll: resetData,
     };
-  }, [ctx, disconnectGist, loadFromGistNow, onPatChange, onToggleDemoMode, resetData, setPage, syncToGistNow]);
+  }, [ctx, onToggleDemoMode, pushStateNow, resetData, setPage, signOut]);
 
   const weekProps = useMemo<WeekViewProps | null>(() => {
     if (!(ctx.isTrack && ctx.isWeek)) {
@@ -1530,6 +1591,15 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const isEntryModal = modal.type === 'entry';
     const isCustomerModal = modal.type === 'customer';
     const canDelete = !modal.isNew;
+    const entryForm = isEntryModal ? (modal.form as EntryForm) : null;
+    const entryId = entryForm?.id ?? '';
+
+    const attachments = (entryForm?.attachments ?? []).map((attachment) => ({
+      id: attachment.id,
+      label: `${attachment.fileName} (${fmtBytes(attachment.size)})`,
+      onDownload: () => void onDownloadAttachment(entryId, attachment.id),
+      onDelete: () => onDeleteAttachment(attachment.id),
+    }));
 
     const modalTitle = modal.type === 'entry'
       ? (modal.isNew ? 'Log hours' : 'Edit entry')
@@ -1583,8 +1653,12 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onCancel: closeModal,
       onDelete: deleteModal,
       stopOverlay: (event: MouseEvent) => event.stopPropagation(),
+      attachments,
+      attachmentUploading: ctx.S.attachmentUploading,
+      attachmentError: ctx.S.attachmentError,
+      onAddAttachments,
     };
-  }, [closeModal, ctx, deleteModal, saveModal, updateForm]);
+  }, [closeModal, ctx, deleteModal, onAddAttachments, onDeleteAttachment, onDownloadAttachment, saveModal, updateForm]);
 
   const customerDetailProps = useMemo<CustomerDetailViewProps | null>(() => {
     if (!ctx.isCustomerDetail || !ctx.S.selectedCustomerId) {

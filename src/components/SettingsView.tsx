@@ -9,26 +9,6 @@ const cardStyle: CSSProperties = {
   padding: '22px',
 };
 
-const labelStyle: CSSProperties = {
-  display: 'block',
-  fontSize: '12px',
-  fontWeight: 500,
-  color: '#626873',
-  marginBottom: '6px',
-};
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  padding: '10px 12px',
-  minHeight: '44px',
-  border: '1px solid #d7dadf',
-  borderRadius: '9px',
-  fontSize: '16px',
-  color: '#1a1c20',
-  background: '#fff',
-  outline: 'none',
-};
-
 const secondaryButtonStyle: CSSProperties = {
   height: '38px',
   padding: '0 14px',
@@ -47,16 +27,11 @@ const SettingsView: FC<SettingsViewProps> = ({
   onToggleDemoMode,
   demoModeHint,
   syncDisabled,
-  patValue,
-  onPatChange,
-  gistIdLabel,
-  gistConnected,
-  gistStatusLabel,
-  gistStatusColor,
-  onConnect,
+  syncStatusLabel,
+  syncStatusColor,
   onSyncNow,
-  onRestoreFromGist,
-  onDisconnect,
+  signedInAs,
+  onSignOut,
   onDeleteAll,
 }) => (
   <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
@@ -65,7 +40,7 @@ const SettingsView: FC<SettingsViewProps> = ({
         <div>
           <div style={{ fontSize: '28px', fontWeight: 600, letterSpacing: '-0.03em' }}>Settings</div>
           <div style={{ marginTop: '4px', fontSize: '13px', color: '#626873' }}>
-            Manage demo mode, GitHub sync and local data.
+            Manage demo mode, Azure sync and local data.
           </div>
         </div>
 
@@ -98,9 +73,9 @@ const SettingsView: FC<SettingsViewProps> = ({
       <section style={{ ...cardStyle, opacity: syncDisabled ? 0.6 : 1, pointerEvents: syncDisabled ? 'none' : undefined }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
           <div>
-            <div style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}>GitHub Gist sync</div>
+            <div style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}>Azure sync</div>
             <div style={{ marginTop: '5px', fontSize: '13px', color: '#626873' }}>
-              Sync your real Tempo data to a private GitHub Gist.
+              Your data is stored in Azure Blob Storage behind the /api/state endpoint, protected by GitHub sign-in.
             </div>
           </div>
 
@@ -110,17 +85,6 @@ const SettingsView: FC<SettingsViewProps> = ({
         </div>
 
         <div style={{ marginTop: '18px', display: 'grid', gap: '16px' }}>
-          <div>
-            <label style={labelStyle}>Personal access token</label>
-            <input
-              type="password"
-              style={inputStyle}
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-              value={patValue}
-              onChange={onPatChange}
-            />
-          </div>
-
           <div
             style={{
               display: 'grid',
@@ -135,32 +99,26 @@ const SettingsView: FC<SettingsViewProps> = ({
           >
             <div>
               <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#9ca3af', fontFamily: "'Geist Mono',monospace" }}>
-                Gist
+                Signed in as
               </div>
               <div style={{ marginTop: '4px', fontSize: '13px', fontFamily: "'Geist Mono',monospace", color: '#1a1c20' }}>
-                {gistIdLabel}
+                {signedInAs || 'Unknown'}
               </div>
             </div>
 
-            <div style={{ fontSize: '13px', fontWeight: 500, color: gistStatusColor }}>{gistStatusLabel}</div>
+            <div style={{ fontSize: '13px', fontWeight: 500, color: syncStatusColor }}>{syncStatusLabel}</div>
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             <button
               type="button"
               style={{ ...secondaryButtonStyle, background: '#1a1c20', borderColor: '#1a1c20', color: '#fff' }}
-              onClick={onConnect}
+              onClick={onSyncNow}
             >
-              Connect
-            </button>
-            <button type="button" style={secondaryButtonStyle} onClick={onSyncNow} disabled={!gistConnected}>
               Sync now
             </button>
-            <button type="button" style={secondaryButtonStyle} onClick={onRestoreFromGist} disabled={!gistConnected}>
-              Restore from Gist
-            </button>
-            <button type="button" style={secondaryButtonStyle} onClick={onDisconnect} disabled={!gistConnected}>
-              Disconnect
+            <button type="button" style={secondaryButtonStyle} onClick={onSignOut}>
+              Sign out
             </button>
           </div>
         </div>

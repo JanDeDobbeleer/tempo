@@ -27,6 +27,18 @@ export function hexToRgba(hex: string, a: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+export function fmtBytes(bytes: number): string {
+  if (!bytes || bytes < 1024) {
+    return `${bytes || 0} B`;
+  }
+  const kb = bytes / 1024;
+  if (kb < 1024) {
+    return `${kb.toFixed(kb < 10 ? 1 : 0)} KB`;
+  }
+  const mb = kb / 1024;
+  return `${mb.toFixed(mb < 10 ? 1 : 0)} MB`;
+}
+
 export function uid(): string {
   return `x${Math.random().toString(36).slice(2, 9)}`;
 }

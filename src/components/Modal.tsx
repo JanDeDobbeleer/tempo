@@ -24,6 +24,10 @@ const Modal: FC<ModalProps> = ({
   onCancel,
   onDelete,
   stopOverlay,
+  attachments,
+  attachmentUploading,
+  attachmentError,
+  onAddAttachments,
 }) => {
   // Safe casts: each isXModal flag guarantees which loose form shape is active.
   const entryForm = form as EntryForm;
@@ -104,6 +108,46 @@ const Modal: FC<ModalProps> = ({
                   value={entryForm.comment}
                   onChange={onFormComment}
                 />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Attachments</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        padding: '8px 10px',
+                        border: '1px solid #e2e4e8',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={attachment.onDownload}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: '#1a1c20', flex: 1, padding: 0 }}
+                      >
+                        {attachment.label}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={attachment.onDelete}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#dc2626', fontSize: '12px', padding: 0 }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+
+                  <input type="file" multiple onChange={onAddAttachments} disabled={attachmentUploading} />
+                  {attachmentUploading && <div style={{ fontSize: '12px', color: '#9ca3af' }}>Uploading…</div>}
+                  {attachmentError && <div style={{ fontSize: '12px', color: '#dc2626' }}>{attachmentError}</div>}
+                </div>
               </div>
             </>
           )}

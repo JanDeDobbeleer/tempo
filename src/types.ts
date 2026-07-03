@@ -30,6 +30,16 @@ export interface Project {
   rates: RatePeriod[];
 }
 
+// A file uploaded against a time entry (e.g. a receipt or screenshot).
+// The blob itself lives in Azure Blob Storage at "<entryId>/<id>"; this
+// record is only the metadata needed to list/download/delete it.
+export interface AttachmentRef {
+  id: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+}
+
 export interface Entry {
   id: string;
   date: string;        // ISO yyyy-mm-dd
@@ -37,11 +47,12 @@ export interface Entry {
   start: number;        // minutes from midnight
   end: number;          // minutes from midnight
   comment: string;
+  attachments: AttachmentRef[];
 }
 
 export type Page = 'track' | 'projects' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail';
 export type View = 'week' | 'day' | 'month';
-export type GistStatus = 'idle' | 'syncing' | 'synced' | 'error';
+export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'conflict';
 
 export type ModalType = 'entry' | 'customer';
 
@@ -52,6 +63,7 @@ export interface EntryForm {
   start: string;  // "HH:MM"
   end: string;    // "HH:MM"
   comment: string;
+  attachments: AttachmentRef[];
 }
 
 export interface ProjectForm {
@@ -282,6 +294,13 @@ export interface RatePeriodRowVM {
   onDelete: () => void;
 }
 
+export interface AttachmentListItemVM {
+  id: string;
+  label: string;
+  onDownload: () => void;
+  onDelete: () => void;
+}
+
 export interface ModalProps {
   modalTitle: string;
   saveLabel: string;
@@ -304,6 +323,10 @@ export interface ModalProps {
   onCancel: () => void;
   onDelete: () => void;
   stopOverlay: (e: MouseEvent) => void;
+  attachments: AttachmentListItemVM[];
+  attachmentUploading: boolean;
+  attachmentError: string;
+  onAddAttachments: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
 // ─── customer detail page (drill down from Customers list) ──────────────
@@ -374,18 +397,13 @@ export interface SettingsViewProps {
   onToggleDemoMode: () => void;
   demoModeHint: string;
 
-  // GitHub Gist sync (disabled while demo mode is active)
+  // Azure sync (GET/PUT /api/state, disabled while demo mode is active)
   syncDisabled: boolean;
-  patValue: string;
-  onPatChange: (e: ChangeEvent<HTMLInputElement>) => void;
-  gistIdLabel: string;
-  gistConnected: boolean;
-  gistStatusLabel: string;
-  gistStatusColor: string;
-  onConnect: () => void;
+  syncStatusLabel: string;
+  syncStatusColor: string;
   onSyncNow: () => void;
-  onRestoreFromGist: () => void;
-  onDisconnect: () => void;
+  signedInAs: string;
+  onSignOut: () => void;
 
   // Danger zone
   onDeleteAll: () => void;

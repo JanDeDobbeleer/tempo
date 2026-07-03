@@ -1,0 +1,23 @@
+{
+  "name": "tempo-api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/src/functions/*.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "start": "npm run build && func start",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.7.2",
+    "@azure/identity": "^4.13.0",
+    "@azure/storage-blob": "^12.28.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.9"
+  }
+}

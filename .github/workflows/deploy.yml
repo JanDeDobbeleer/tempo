@@ -1,25 +1,27 @@
-name: Deploy to GitHub Pages
+name: Deploy to Azure Static Web Apps
 
 on:
   push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
+  pull-requests: write
 
 jobs:
-  build:
+  build_and_deploy:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     runs-on: ubuntu-latest
+    name: Build and deploy
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -27,27 +29,25 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Build and deploy
+        uses: Azure/static-web-apps-deploy@v1
         with:
-          path: dist
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: '/'
+          api_location: 'api'
+          output_location: 'dist'
+          app_build_command: 'npm ci && npm run build'
+          api_build_command: 'npm ci && npm run build'
 
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  close_pull_request:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
-    needs: build
+    name: Close pull request preview environment
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Close pull request
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: close
