@@ -10,9 +10,9 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { PDFFont, PDFPage } from 'pdf-lib';
 import JSZip from 'jszip';
 
-import type { AttachmentRef, Customer, Entry, Project } from '../types';
+import type { AttachmentRef, Customer, Entry, Project, Service } from '../types';
+import { entryEarnValue } from './earnings';
 import { fmtEUR, fmtH } from './format';
-import { rateForDate } from './rates';
 import { fmtShortDateYear, parseISO } from './dates';
 import * as store from './store';
 import logoUrl from '../assets/itdepends-logo.png';
@@ -29,7 +29,8 @@ const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 
 export interface TimesheetExportEntry {
   entry: Entry;
-  project: Project;
+  project: Project | null;
+  service: Service | null;
   customer: Customer;
 }
 
@@ -159,9 +160,9 @@ export async function buildTimesheetPdf(options: TimesheetExportOptions): Promis
   let totalMinutes = 0;
   let totalAmount = 0;
 
-  sorted.forEach(({ entry, project }) => {
+  sorted.forEach(({ entry, project, service }) => {
     const minutes = entry.end - entry.start;
-    const amount = ((minutes / 60) / hoursPerDay) * rateForDate(project.rates, entry.date);
+    const amount = entryEarnValue(entry, project ?? undefined, service ?? undefined, hoursPerDay);
     totalMinutes += minutes;
     totalAmount += amount;
 

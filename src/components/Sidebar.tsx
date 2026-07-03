@@ -5,11 +5,13 @@ const Sidebar: FC<SidebarProps> = ({
   logoStyle,
   navTrackStyle,
   navProjectsStyle,
+  navServicesStyle,
   navCustomersStyle,
   navExportStyle,
   navEarningsStyle,
   onNavTrack,
   onNavProjects,
+  onNavServices,
   onNavCustomers,
   onNavExport,
   onNavEarnings,
@@ -35,6 +37,11 @@ const Sidebar: FC<SidebarProps> = ({
 
   const handleNavCustomers = () => {
     onNavCustomers();
+    onClose?.();
+  };
+
+  const handleNavServices = () => {
+    onNavServices();
     onClose?.();
   };
 
@@ -93,6 +100,13 @@ const Sidebar: FC<SidebarProps> = ({
             <rect x="13" y="13" width="7" height="7" rx="1.5"></rect>
           </svg>
           <span>Projects</span>
+        </button>
+        <button type="button" style={navServicesStyle} onClick={handleNavServices}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="5" y="6" width="14" height="12" rx="3"></rect>
+            <path d="M9 10h6M9 14h3" strokeLinecap="round"></path>
+          </svg>
+          <span>Services</span>
         </button>
         <button type="button" style={navCustomersStyle} onClick={handleNavCustomers}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

@@ -10,11 +10,16 @@ const Modal: FC<ModalProps> = ({
   canDelete,
   form,
   projOpts,
+  serviceOpts,
+  custOptsForEntry,
   inputStyle,
   textareaStyle,
   labelStyle,
   btnPrimaryLg,
+  onFormKind,
   onFormProject,
+  onFormService,
+  onFormEntryCustomer,
   onFormDate,
   onFormStart,
   onFormEnd,
@@ -67,14 +72,77 @@ const Modal: FC<ModalProps> = ({
           {isEntryModal && (
             <>
               <div>
-                <label style={labelStyle}>Project</label>
-                <select style={inputStyle} value={entryForm.projectId} onChange={onFormProject}>
-                  {projOpts.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
+                <label style={labelStyle}>Type</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button
+                    type="button"
+                    style={{
+                      ...inputStyle,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: entryForm.kind === 'project' ? '#1a1c20' : '#fff',
+                      color: entryForm.kind === 'project' ? '#fff' : '#1a1c20',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => onFormKind('project')}
+                  >
+                    Project
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...inputStyle,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: entryForm.kind === 'service' ? '#1a1c20' : '#fff',
+                      color: entryForm.kind === 'service' ? '#fff' : '#1a1c20',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => onFormKind('service')}
+                  >
+                    Service
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                {entryForm.kind === 'project' ? (
+                  <>
+                    <label style={labelStyle}>Project</label>
+                    <select style={inputStyle} value={entryForm.projectId} onChange={onFormProject}>
+                      {projOpts.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={labelStyle}>Customer</label>
+                      <select style={inputStyle} value={entryForm.customerId} onChange={onFormEntryCustomer}>
+                        {custOptsForEntry.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Service</label>
+                      <select style={inputStyle} value={entryForm.serviceId} onChange={onFormService}>
+                        {serviceOpts.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

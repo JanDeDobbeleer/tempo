@@ -12,6 +12,7 @@ import { RestError } from '@azure/storage-blob';
 interface PersistedData {
   customers: unknown[];
   projects: unknown[];
+  services: unknown[];
   entries: unknown[];
 }
 
@@ -20,10 +21,13 @@ function isPersistedData(value: unknown): value is PersistedData {
     return false;
   }
   const candidate = value as Partial<PersistedData>;
-  return Array.isArray(candidate.customers) && Array.isArray(candidate.projects) && Array.isArray(candidate.entries);
+  return Array.isArray(candidate.customers)
+    && Array.isArray(candidate.projects)
+    && (candidate.services === undefined || Array.isArray(candidate.services))
+    && Array.isArray(candidate.entries);
 }
 
-const EMPTY_STATE: PersistedData = { customers: [], projects: [], entries: [] };
+const EMPTY_STATE: PersistedData = { customers: [], projects: [], services: [], entries: [] };
 
 async function getState(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   if (!requireOwner(request)) {
@@ -68,7 +72,7 @@ async function putState(request: HttpRequest, context: InvocationContext): Promi
   }
 
   if (!isPersistedData(payload)) {
-    return { status: 400, jsonBody: { message: 'Body must contain customers[], projects[], entries[].' } };
+    return { status: 400, jsonBody: { message: 'Body must contain customers[], projects[], services[]?, entries[].' } };
   }
 
   const ifMatch = request.headers.get('if-match');

@@ -30,6 +30,12 @@ export interface Project {
   rates: RatePeriod[];
 }
 
+export interface Service {
+  id: string;
+  name: string;
+  rates: RatePeriod[];
+}
+
 // A file uploaded against a time entry (e.g. a receipt or screenshot).
 // The blob itself lives in Azure Blob Storage at "<entryId>/<id>"; this
 // record is only the metadata needed to list/download/delete it.
@@ -43,14 +49,17 @@ export interface AttachmentRef {
 export interface Entry {
   id: string;
   date: string;        // ISO yyyy-mm-dd
-  projectId: string;
+  kind: 'project' | 'service';
+  projectId: string | null;
+  serviceId: string | null;
+  customerId: string | null;
   start: number;        // minutes from midnight
   end: number;          // minutes from midnight
   comment: string;
   attachments: AttachmentRef[];
 }
 
-export type Page = 'track' | 'projects' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail' | 'export' | 'earnings';
+export type Page = 'track' | 'projects' | 'services' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail' | 'serviceDetail' | 'export' | 'earnings';
 export type View = 'week' | 'day' | 'month';
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'conflict';
 
@@ -58,7 +67,10 @@ export type ModalType = 'entry' | 'customer';
 
 export interface EntryForm {
   id: string | null;
+  kind: 'project' | 'service';
   projectId: string;
+  serviceId: string;
+  customerId: string;
   date: string;
   start: string;  // "HH:MM"
   end: string;    // "HH:MM"
@@ -70,6 +82,14 @@ export interface ProjectForm {
   id: string | null;
   name: string;
   customerId: string;
+  rates: RatePeriod[];
+  newRateAmount: string;
+  newRateFrom: string;
+}
+
+export interface ServiceForm {
+  id: string | null;
+  name: string;
   rates: RatePeriod[];
   newRateAmount: string;
   newRateFrom: string;
@@ -98,6 +118,7 @@ export interface DragState {
 export interface PersistedData {
   customers: Customer[];
   projects: Project[];
+  services: Service[];
   entries: Entry[];
 }
 
@@ -115,11 +136,13 @@ export interface SidebarProps {
   logoStyle: CSSProperties;
   navTrackStyle: CSSProperties;
   navProjectsStyle: CSSProperties;
+  navServicesStyle: CSSProperties;
   navCustomersStyle: CSSProperties;
   navExportStyle: CSSProperties;
   navEarningsStyle: CSSProperties;
   onNavTrack: () => void;
   onNavProjects: () => void;
+  onNavServices: () => void;
   onNavCustomers: () => void;
   onNavExport: () => void;
   onNavEarnings: () => void;
@@ -139,6 +162,7 @@ export interface AppHeaderProps {
   headerSubtitle: string;
   isTrack: boolean;
   isProjects: boolean;
+  isServices: boolean;
   isCustomers: boolean;
   tabDayStyle: CSSProperties;
   tabWeekStyle: CSSProperties;
@@ -152,6 +176,7 @@ export interface AppHeaderProps {
   btnPrimary: CSSProperties;
   onNewEntry: () => void;
   onNewProject: () => void;
+  onNewService: () => void;
   onNewCustomer: () => void;
   onToggleSidebar?: () => void;
   isMobile?: boolean;
@@ -261,6 +286,21 @@ export interface ProjectsViewProps {
   projEmpty: boolean;
 }
 
+export interface ServiceRowVM {
+  id: string;
+  name: string;
+  currentRate: string;
+  hours: string;
+  earn: string;
+  dotStyle: CSSProperties;
+  onClick: () => void;
+}
+
+export interface ServicesViewProps {
+  serviceRows: ServiceRowVM[];
+  serviceEmpty: boolean;
+}
+
 export interface CustomerRowVM {
   id: string;
   name: string;
@@ -314,11 +354,16 @@ export interface ModalProps {
   canDelete: boolean;
   form: ModalForm;
   projOpts: SelectOptionVM[];
+  serviceOpts: SelectOptionVM[];
+  custOptsForEntry: SelectOptionVM[];
   inputStyle: CSSProperties;
   textareaStyle: CSSProperties;
   labelStyle: CSSProperties;
   btnPrimaryLg: CSSProperties;
+  onFormKind: (kind: 'project' | 'service') => void;
   onFormProject: (e: ChangeEvent<HTMLSelectElement>) => void;
+  onFormService: (e: ChangeEvent<HTMLSelectElement>) => void;
+  onFormEntryCustomer: (e: ChangeEvent<HTMLSelectElement>) => void;
   onFormDate: (e: ChangeEvent<HTMLInputElement>) => void;
   onFormStart: (e: ChangeEvent<HTMLInputElement>) => void;
   onFormEnd: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -396,6 +441,28 @@ export interface ProjectDetailViewProps {
   onViewEarnings: () => void;
 }
 
+export interface ServiceDetailViewProps {
+  isNew: boolean;
+  saveLabel: string;
+  serviceName: string;
+  hours: string;
+  earn: string;
+  canDelete: boolean;
+  rateRows: RatePeriodRowVM[];
+  newRateAmount: string;
+  newRateFrom: string;
+  inputStyle: CSSProperties;
+  labelStyle: CSSProperties;
+  btnPrimaryLg: CSSProperties;
+  onNameChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onNewRateAmountChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onNewRateFromChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onAddRate: () => void;
+  onSave: () => void;
+  onDelete: () => void;
+  onBack: () => void;
+}
+
 // ─── timesheet export page (PDF + attachments zip for a customer or project) ──
 
 export type ExportScope = { type: 'customer'; id: string } | { type: 'project'; id: string };
@@ -403,6 +470,7 @@ export type ExportScope = { type: 'customer'; id: string } | { type: 'project'; 
 export interface ExportViewProps {
   customers: Customer[];
   projects: Project[];
+  services: Service[];
   entries: Entry[];
   hoursPerDay: number;
   initialScope: ExportScope | null;
@@ -431,6 +499,7 @@ export interface EarningsRowVM {
 export interface EarningsViewProps {
   customers: Customer[];
   projects: Project[];
+  services: Service[];
   entries: Entry[];
   hoursPerDay: number;
   initialFilter: EarningsFilterSeed | null;
@@ -466,10 +535,12 @@ export interface TempoViewModel {
   showDay: boolean;
   showMonth: boolean;
   showProjects: boolean;
+  showServices: boolean;
   showCustomers: boolean;
   showSettings: boolean;
   showCustomerDetail: boolean;
   showProjectDetail: boolean;
+  showServiceDetail: boolean;
   showExport: boolean;
   showEarnings: boolean;
   modalOpen: boolean;
@@ -479,10 +550,12 @@ export interface TempoViewModel {
   dayProps: DayViewProps | null;
   monthProps: MonthViewProps | null;
   projectsProps: ProjectsViewProps | null;
+  servicesProps: ServicesViewProps | null;
   customersProps: CustomersViewProps | null;
   settingsProps: SettingsViewProps | null;
   customerDetailProps: CustomerDetailViewProps | null;
   projectDetailProps: ProjectDetailViewProps | null;
+  serviceDetailProps: ServiceDetailViewProps | null;
   exportProps: ExportViewProps | null;
   earningsProps: EarningsViewProps | null;
   modalProps: ModalProps | null;

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, typ
 
 import type { ExportViewProps, ExportScope } from '../types';
 import { daysInMonth, defaultExportPeriod, fmtMonthYear, fmtShortDateYear, parseISO } from '../lib/dates';
+import { entryEarnValue } from '../lib/earnings';
 import { fmtEUR, fmtH } from '../lib/format';
-import { rateForDate } from '../lib/rates';
 import { buildAttachmentsZip, buildTimesheetPdf, triggerDownload, type TimesheetExportEntry } from '../lib/timesheetExport';
 
 const cardStyle: CSSProperties = {
@@ -42,7 +42,7 @@ function slug(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'export';
 }
 
-const ExportView: FC<ExportViewProps> = ({ customers, projects, entries, hoursPerDay, initialScope, onBack }) => {
+const ExportView: FC<ExportViewProps> = ({ customers, projects, services, entries, hoursPerDay, initialScope, onBack }) => {
   const today = useMemo(() => new Date(), []);
   const defaultPeriod = useMemo(() => defaultExportPeriod(today), [today]);
 
@@ -67,6 +67,16 @@ const ExportView: FC<ExportViewProps> = ({ customers, projects, entries, hoursPe
     return map;
   }, [customers]);
 
+  const projectById = useMemo(() => {
+    const map = new Map(projects.map((project) => [project.id, project]));
+    return map;
+  }, [projects]);
+
+  const serviceById = useMemo(() => {
+    const map = new Map(services.map((service) => [service.id, service]));
+    return map;
+  }, [services]);
+
   const projectsForScope = useMemo(() => {
     if (scopeType === 'customer') {
       return projects.filter((project) => project.customerId === scopeId);
@@ -78,19 +88,30 @@ const ExportView: FC<ExportViewProps> = ({ customers, projects, entries, hoursPe
   const matchingEntries = useMemo<TimesheetExportEntry[]>(() => {
     const projectIds = new Set(projectsForScope.map((project) => project.id));
     return entries
-      .filter((entry) => projectIds.has(entry.projectId) && entry.date >= fromISO && entry.date <= toISO)
+      .filter((entry) => {
+        if (entry.date < fromISO || entry.date > toISO) {
+          return false;
+        }
+        if (scopeType === 'project') {
+          return entry.kind === 'project' && projectIds.has(entry.projectId ?? '');
+        }
+        return (entry.kind === 'project' && projectIds.has(entry.projectId ?? '')) || (entry.kind === 'service' && entry.customerId === scopeId);
+      })
       .map((entry) => {
-        const project = projects.find((item) => item.id === entry.projectId);
-        const customer = project ? customerById.get(project.customerId) : undefined;
-        return project && customer ? { entry, project, customer } : null;
+        const project = entry.kind === 'project' ? (projectById.get(entry.projectId ?? '') ?? null) : null;
+        const service = entry.kind === 'service' ? (serviceById.get(entry.serviceId ?? '') ?? null) : null;
+        const customer = entry.kind === 'service'
+          ? customerById.get(entry.customerId ?? '')
+          : (project ? customerById.get(project.customerId) : undefined);
+        return customer ? { entry, project, service, customer } : null;
       })
       .filter((item): item is TimesheetExportEntry => item !== null)
       .sort((a, b) => a.entry.date.localeCompare(b.entry.date));
-  }, [customerById, entries, fromISO, projects, projectsForScope, toISO]);
+  }, [customerById, entries, fromISO, projectById, projectsForScope, scopeId, scopeType, serviceById, toISO]);
 
   const totalMinutes = matchingEntries.reduce((sum, item) => sum + (item.entry.end - item.entry.start), 0);
   const totalAmount = matchingEntries.reduce(
-    (sum, item) => sum + (((item.entry.end - item.entry.start) / 60) / hoursPerDay) * rateForDate(item.project.rates, item.entry.date),
+    (sum, item) => sum + entryEarnValue(item.entry, item.project ?? undefined, item.service ?? undefined, hoursPerDay),
     0,
   );
   const attachmentCount = matchingEntries.reduce((sum, item) => sum + item.entry.attachments.length, 0);

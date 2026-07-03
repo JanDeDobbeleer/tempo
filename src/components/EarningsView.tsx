@@ -51,7 +51,7 @@ function pillStyle(active: boolean): CSSProperties {
 type Preset = 'month' | 'quarter' | 'year' | 'custom';
 type GroupBy = 'customer' | 'project';
 
-const EarningsView: FC<EarningsViewProps> = ({ customers, projects, entries, hoursPerDay, initialFilter, onBack }) => {
+const EarningsView: FC<EarningsViewProps> = ({ customers, projects, services, entries, hoursPerDay, initialFilter, onBack }) => {
   const today = useMemo(() => new Date(), []);
   const defaultPeriod = useMemo(() => defaultExportPeriod(today), [today]);
 
@@ -102,13 +102,13 @@ const EarningsView: FC<EarningsViewProps> = ({ customers, projects, entries, hou
 
   const filteredEntries = useMemo(
     () =>
-      filterEntries(entries, projects, {
+      filterEntries(entries, projects, services, {
         fromISO,
         toISO,
         customerId: customerId || null,
         projectId: projectId || null,
       }),
-    [customerId, entries, fromISO, projectId, projects, toISO],
+    [customerId, entries, fromISO, projectId, projects, services, toISO],
   );
 
   const projById = useMemo(() => {
@@ -119,10 +119,18 @@ const EarningsView: FC<EarningsViewProps> = ({ customers, projects, entries, hou
     return map;
   }, [projects]);
 
-  const summary = useMemo(() => summarize(filteredEntries, projById, hoursPerDay), [filteredEntries, hoursPerDay, projById]);
+  const serviceById = useMemo(() => {
+    const map: Record<string, (typeof services)[number]> = {};
+    services.forEach((service) => {
+      map[service.id] = service;
+    });
+    return map;
+  }, [services]);
+
+  const summary = useMemo(() => summarize(filteredEntries, projById, serviceById, hoursPerDay), [filteredEntries, hoursPerDay, projById, serviceById]);
 
   const rows = useMemo<EarningsRowVM[]>(() => {
-    const groups = aggregateBy(filteredEntries, projects, customers, groupBy, hoursPerDay);
+    const groups = aggregateBy(filteredEntries, projects, services, customers, groupBy, hoursPerDay);
     return groups.map((group) => ({
       id: group.id,
       name: group.name,
@@ -132,7 +140,7 @@ const EarningsView: FC<EarningsViewProps> = ({ customers, projects, entries, hou
       earn: fmtEUR(group.earn),
       share: `${Math.round(group.sharePct)}%`,
     }));
-  }, [customers, filteredEntries, groupBy, hoursPerDay, projects]);
+  }, [customers, filteredEntries, groupBy, hoursPerDay, projects, services]);
 
   const periodLabel = useMemo(() => {
     const from = parseISO(fromISO);

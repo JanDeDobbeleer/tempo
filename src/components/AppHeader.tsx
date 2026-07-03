@@ -6,6 +6,7 @@ const AppHeader: FC<AppHeaderProps> = ({
   headerSubtitle,
   isTrack,
   isProjects,
+  isServices,
   isCustomers,
   tabDayStyle,
   tabWeekStyle,
@@ -19,6 +20,7 @@ const AppHeader: FC<AppHeaderProps> = ({
   btnPrimary,
   onNewEntry,
   onNewProject,
+  onNewService,
   onNewCustomer,
   onToggleSidebar,
   isMobile,
@@ -186,6 +188,13 @@ const AppHeader: FC<AppHeaderProps> = ({
           !isMobile && (
             <button type="button" style={btnPrimary} onClick={onNewProject}>
               + New project
+            </button>
+          )
+        )}
+        {isServices && (
+          !isMobile && (
+            <button type="button" style={btnPrimary} onClick={onNewService}>
+              + New service
             </button>
           )
         )}

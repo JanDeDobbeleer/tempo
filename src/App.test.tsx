@@ -38,6 +38,10 @@ vi.mock('./components/ProjectsView', () => ({
   default: () => <div data-testid="projects-view" />,
 }))
 
+vi.mock('./components/ServicesView', () => ({
+  default: () => <div data-testid="services-view" />,
+}))
+
 vi.mock('./components/CustomersView', () => ({
   default: () => <div data-testid="customers-view" />,
 }))
@@ -48,6 +52,10 @@ vi.mock('./components/CustomerDetailView', () => ({
 
 vi.mock('./components/ProjectDetailView', () => ({
   default: () => <div data-testid="project-detail-view" />,
+}))
+
+vi.mock('./components/ServiceDetailView', () => ({
+  default: () => <div data-testid="service-detail-view" />,
 }))
 
 vi.mock('./components/SettingsView', () => ({
@@ -83,10 +91,12 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
     showDay: false,
     showMonth: false,
     showProjects: false,
+    showServices: false,
     showCustomers: false,
     showSettings: false,
     showCustomerDetail: false,
     showProjectDetail: false,
+    showServiceDetail: false,
     showExport: false,
     showEarnings: false,
     modalOpen: false,
@@ -94,11 +104,13 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       logoStyle: {},
       navTrackStyle: {},
       navProjectsStyle: {},
+      navServicesStyle: {},
       navCustomersStyle: {},
       navExportStyle: {},
       navEarningsStyle: {},
       onNavTrack: vi.fn(),
       onNavProjects: vi.fn(),
+      onNavServices: vi.fn(),
       onNavCustomers: vi.fn(),
       onNavExport: vi.fn(),
       onNavEarnings: vi.fn(),
@@ -115,6 +127,7 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       headerSubtitle: 'Week',
       isTrack: true,
       isProjects: false,
+      isServices: false,
       isCustomers: false,
       tabDayStyle: {},
       tabWeekStyle: {},
@@ -128,16 +141,19 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       btnPrimary: {},
       onNewEntry: vi.fn(),
       onNewProject: vi.fn(),
+      onNewService: vi.fn(),
       onNewCustomer: vi.fn(),
     },
     weekProps: { weekDays: [], gutterStyle: {}, hourRows: [] },
     dayProps: null,
     monthProps: null,
     projectsProps: null,
+    servicesProps: null,
     customersProps: null,
     settingsProps: null,
     customerDetailProps: null,
     projectDetailProps: null,
+    serviceDetailProps: null,
     exportProps: null,
     earningsProps: null,
     modalProps: null,
@@ -177,17 +193,36 @@ describe('App FAB integration', () => {
     expect(screen.getByRole('button', { name: 'New project' })).toBeInTheDocument()
   })
 
+  test('shows New service on the services screen', () => {
+    mockedUseTempoState.mockReturnValue(makeViewModel({
+      showWeek: false,
+      showServices: true,
+      headerProps: {
+        ...makeViewModel().headerProps,
+        isTrack: false,
+        isServices: true,
+      },
+      weekProps: null,
+      servicesProps: { serviceRows: [], serviceEmpty: true },
+    }))
+
+    render(<App />)
+
+    expect(screen.getByRole('button', { name: 'New service' })).toBeInTheDocument()
+  })
+
   test('hides the FAB on settings and detail screens', () => {
     const scenarios: TempoViewModel[] = [
       makeViewModel({ showWeek: false, showSettings: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, weekProps: null, settingsProps: {} as TempoViewModel['settingsProps'] }),
       makeViewModel({ showWeek: false, showCustomerDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, weekProps: null, customerDetailProps: {} as TempoViewModel['customerDetailProps'] }),
       makeViewModel({ showWeek: false, showProjectDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, weekProps: null, projectDetailProps: {} as TempoViewModel['projectDetailProps'] }),
+      makeViewModel({ showWeek: false, showServiceDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, weekProps: null, serviceDetailProps: {} as TempoViewModel['serviceDetailProps'] }),
     ]
 
     for (const scenario of scenarios) {
       mockedUseTempoState.mockReturnValue(scenario)
       const { unmount } = render(<App />)
-      expect(screen.queryByRole('button', { name: /Add hours|New project|New customer/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Add hours|New project|New service|New customer/ })).not.toBeInTheDocument()
       unmount()
     }
   })

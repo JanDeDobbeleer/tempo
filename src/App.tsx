@@ -8,9 +8,11 @@ import WeekView from './components/WeekView';
 import DayView from './components/DayView';
 import MonthView from './components/MonthView';
 import ProjectsView from './components/ProjectsView';
+import ServicesView from './components/ServicesView';
 import CustomersView from './components/CustomersView';
 import CustomerDetailView from './components/CustomerDetailView';
 import ProjectDetailView from './components/ProjectDetailView';
+import ServiceDetailView from './components/ServiceDetailView';
 import SettingsView from './components/SettingsView';
 import Modal from './components/Modal';
 import Fab from './components/Fab';
@@ -36,9 +38,11 @@ const App: FC = () => {
     showDay,
     showMonth,
     showProjects,
+    showServices,
     showCustomers,
     showCustomerDetail,
     showProjectDetail,
+    showServiceDetail,
     showSettings,
     showExport,
     showEarnings,
@@ -49,9 +53,11 @@ const App: FC = () => {
     dayProps,
     monthProps,
     projectsProps,
+    servicesProps,
     customersProps,
     customerDetailProps,
     projectDetailProps,
+    serviceDetailProps,
     settingsProps,
     exportProps,
     earningsProps,
@@ -69,6 +75,8 @@ const App: FC = () => {
       ? { label: 'Add hours', onClick: headerProps.onNewEntry }
       : showProjects
         ? { label: 'New project', onClick: headerProps.onNewProject }
+        : showServices
+          ? { label: 'New service', onClick: headerProps.onNewService }
         : showCustomers
           ? { label: 'New customer', onClick: headerProps.onNewCustomer }
           : null
@@ -91,9 +99,11 @@ const App: FC = () => {
         {showDay && dayProps && <DayView {...dayProps} />}
         {showMonth && monthProps && <MonthView {...monthProps} />}
         {showProjects && projectsProps && <ProjectsView {...projectsProps} />}
+        {showServices && servicesProps && <ServicesView {...servicesProps} />}
         {showCustomers && customersProps && <CustomersView {...customersProps} />}
         {showCustomerDetail && customerDetailProps && <CustomerDetailView {...customerDetailProps} />}
         {showProjectDetail && projectDetailProps && <ProjectDetailView {...projectDetailProps} />}
+        {showServiceDetail && serviceDetailProps && <ServiceDetailView {...serviceDetailProps} />}
         {showSettings && settingsProps && <SettingsView {...settingsProps} />}
         {showExport && exportProps && (
           <Suspense fallback={<div style={{ padding: '26px', color: '#626873' }}>Loading export…</div>}>

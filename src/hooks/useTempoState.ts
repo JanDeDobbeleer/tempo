@@ -35,6 +35,10 @@ import type {
   ProjectsViewProps,
   RatePeriod,
   RatePeriodRowVM,
+  Service,
+  ServiceDetailViewProps,
+  ServiceForm,
+  ServicesViewProps,
   SettingsViewProps,
   SidebarProps,
   SyncStatus,
@@ -59,6 +63,34 @@ function colorForProject(project: Project | undefined, custById: Record<string, 
   return custById[project.customerId]?.color || '#9ca3af';
 }
 
+function colorForServiceEntry(entry: Entry, custById: Record<string, Customer>): string {
+  return entry.customerId ? (custById[entry.customerId]?.color || '#9ca3af') : '#9ca3af';
+}
+
+function labelForEntry(
+  entry: Entry,
+  projById: Record<string, Project>,
+  serviceById: Record<string, Service>,
+  custById: Record<string, Customer>,
+): string {
+  if (entry.kind === 'service') {
+    const serviceName = serviceById[entry.serviceId ?? '']?.name || '—';
+    const customerName = custById[entry.customerId ?? '']?.name || '—';
+    return `${serviceName} — ${customerName}`;
+  }
+  return projById[entry.projectId ?? '']?.name || '—';
+}
+
+function colorForEntry(
+  entry: Entry,
+  projById: Record<string, Project>,
+  custById: Record<string, Customer>,
+): string {
+  return entry.kind === 'service'
+    ? colorForServiceEntry(entry, custById)
+    : colorForProject(projById[entry.projectId ?? ''], custById);
+}
+
 type TempoState = PersistedData & {
   page: Page;
   view: View;
@@ -73,15 +105,16 @@ type TempoState = PersistedData & {
   userDisplayName: string;
   selectedCustomerId: string | null;
   selectedProjectId: string | null;
+  selectedServiceId: string | null;
   projectDraft: ProjectForm | null;
   projectOrigin: ProjectOrigin | null;
+  serviceDraft: ServiceForm | null;
   exportScope: ExportScope | null;
   earningsFilter: EarningsFilterSeed | null;
 };
 
 type ProjectOrigin = { page: 'projects' } | { page: 'customerDetail'; customerId: string };
-
-type EntryDraft = Pick<Entry, 'projectId' | 'date' | 'start' | 'end' | 'comment'> & Partial<Pick<Entry, 'id' | 'attachments'>>;
+type EntryDraft = Pick<Entry, 'kind' | 'projectId' | 'serviceId' | 'customerId' | 'date' | 'start' | 'end' | 'comment'> & Partial<Pick<Entry, 'id' | 'attachments'>>;
 
 type RenderCtx = {
   S: TempoState;
@@ -91,17 +124,20 @@ type RenderCtx = {
   ref: Date;
   todayISO: string;
   projById: Record<string, Project>;
+  serviceById: Record<string, Service>;
   custById: Record<string, Customer>;
   entryEarn: (entry: Entry) => number;
   isTrack: boolean;
   isProjects: boolean;
+  isServices: boolean;
   isCustomers: boolean;
   isSettings: boolean;
   isCustomerDetail: boolean;
   isProjectDetail: boolean;
+  isServiceDetail: boolean;
   isExport: boolean;
   isEarnings: boolean;
-  navSection: 'track' | 'projects' | 'customers' | 'settings' | 'export' | 'earnings';
+  navSection: 'track' | 'projects' | 'services' | 'customers' | 'settings' | 'export' | 'earnings';
   isWeek: boolean;
   isDay: boolean;
   isMonth: boolean;
@@ -194,6 +230,7 @@ function createEmptyData(): PersistedData {
   return {
     customers: [],
     projects: [],
+    services: [],
     entries: [],
   };
 }
@@ -207,6 +244,7 @@ function createStateFromData(data: PersistedData, demoMode: boolean): TempoState
     refISO: iso(today),
     customers: data.customers,
     projects: data.projects,
+    services: data.services,
     entries: data.entries,
     modal: null,
     drag: null,
@@ -218,14 +256,16 @@ function createStateFromData(data: PersistedData, demoMode: boolean): TempoState
     userDisplayName: '',
     selectedCustomerId: null,
     selectedProjectId: null,
+    selectedServiceId: null,
     projectDraft: null,
     projectOrigin: null,
+    serviceDraft: null,
     exportScope: null,
     earningsFilter: null,
   };
 }
 
-function makeEntry(
+function makeProjectEntry(
   id: string,
   date: string,
   projectId: string,
@@ -233,7 +273,7 @@ function makeEntry(
   end: number,
   comment: string,
 ): Entry {
-  return { id, date, projectId, start, end, comment, attachments: [] };
+  return { id, kind: 'project', date, projectId, serviceId: null, customerId: null, start, end, comment, attachments: [] };
 }
 
 function createDemoSeed(): PersistedData {
@@ -257,17 +297,21 @@ function createDemoSeed(): PersistedData {
   return {
     customers,
     projects,
+    services: [
+      { id: 's1', name: 'Workshop', rates: seedRate('sr1', 1200) },
+      { id: 's2', name: 'Training', rates: seedRate('sr2', 900) },
+    ],
     entries: [
-      makeEntry('e1', dayISO(0), 'p1', 540, 750, 'Wireframe review & IA'),
-      makeEntry('e2', dayISO(0), 'p3', 810, 960, 'Logo exploration'),
-      makeEntry('e3', dayISO(1), 'p2', 510, 660, 'Onboarding flow'),
-      makeEntry('e4', dayISO(1), 'p4', 840, 1050, 'Charts components'),
-      makeEntry('e5', dayISO(2), 'p1', 540, 780, 'Homepage build'),
-      makeEntry('e6', dayISO(2), 'p5', 870, 990, 'API field mapping'),
-      makeEntry('e7', dayISO(3), 'p3', 600, 720, 'Type scale & tokens'),
-      makeEntry('e8', dayISO(3), 'p2', 780, 1020, 'Push notifications'),
-      makeEntry('e9', dayISO(4), 'p1', 570, 720, 'QA & polish'),
-      makeEntry('e10', dayISO(4), 'p4', 780, 930, 'Dashboard polish'),
+      makeProjectEntry('e1', dayISO(0), 'p1', 540, 750, 'Wireframe review & IA'),
+      makeProjectEntry('e2', dayISO(0), 'p3', 810, 960, 'Logo exploration'),
+      makeProjectEntry('e3', dayISO(1), 'p2', 510, 660, 'Onboarding flow'),
+      makeProjectEntry('e4', dayISO(1), 'p4', 840, 1050, 'Charts components'),
+      makeProjectEntry('e5', dayISO(2), 'p1', 540, 780, 'Homepage build'),
+      makeProjectEntry('e6', dayISO(2), 'p5', 870, 990, 'API field mapping'),
+      { id: 'e7', kind: 'service', date: dayISO(3), projectId: null, serviceId: 's1', customerId: 'c2', start: 600, end: 720, comment: 'Workshop facilitation', attachments: [] },
+      makeProjectEntry('e8', dayISO(3), 'p2', 780, 1020, 'Push notifications'),
+      makeProjectEntry('e9', dayISO(4), 'p1', 570, 720, 'QA & polish'),
+      { id: 'e10', kind: 'service', date: dayISO(4), projectId: null, serviceId: 's2', customerId: 'c1', start: 780, end: 930, comment: 'Team training', attachments: [] },
     ],
   };
 }
@@ -323,6 +367,7 @@ function createInitialState(): TempoState {
 function buildDayEntries(
   entries: Entry[],
   projById: Record<string, Project>,
+  serviceById: Record<string, Service>,
   custById: Record<string, Customer>,
   dayISO: string,
   openEntry: (entry: Entry, isNew: boolean) => void,
@@ -331,14 +376,13 @@ function buildDayEntries(
     .filter((entry) => entry.date === dayISO)
     .sort((a, b) => a.start - b.start)
     .map((entry) => {
-      const project = projById[entry.projectId];
-      const color = colorForProject(project, custById);
+      const color = colorForEntry(entry, projById, custById);
       const top = minToY(entry.start);
       const height = Math.max(26, minToY(entry.end) - minToY(entry.start));
 
       return {
         id: entry.id,
-        projectName: project?.name || '—',
+        projectName: labelForEntry(entry, projById, serviceById, custById),
         comment: entry.comment,
         timeLabel: `${fmtMin(entry.start)}–${fmtMin(entry.end)} · ${fmtH(entry.end - entry.start)}`,
         style: {
@@ -412,7 +456,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         isNew,
         form: {
           id: entry.id || uid(),
-          projectId: entry.projectId,
+          kind: entry.kind,
+          projectId: entry.projectId ?? '',
+          serviceId: entry.serviceId ?? '',
+          customerId: entry.customerId ?? '',
           date: entry.date,
           start: fmtMin(entry.start),
           end: fmtMin(entry.end),
@@ -424,8 +471,17 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   }, []);
 
   const openNewEntry = useCallback(() => {
-    const projectId = stateRef.current.projects[0]?.id || '';
-    openEntry({ projectId, date: stateRef.current.refISO, start: 540, end: 600, comment: '' }, true);
+    const kind = stateRef.current.projects[0] ? 'project' : 'service';
+    openEntry({
+      kind,
+      projectId: kind === 'project' ? (stateRef.current.projects[0]?.id || '') : null,
+      serviceId: kind === 'service' ? (stateRef.current.services[0]?.id || '') : null,
+      customerId: kind === 'service' ? (stateRef.current.customers[0]?.id || '') : null,
+      date: stateRef.current.refISO,
+      start: 540,
+      end: 600,
+      comment: '',
+    }, true);
   }, [openEntry]);
 
   const draftFromProject = useCallback((project: Project | null, customers: Customer[], presetCustomerId?: string): ProjectForm => (
@@ -453,10 +509,42 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       ...current,
       page: 'projectDetail',
       selectedProjectId: project?.id ?? null,
+      selectedServiceId: null,
       projectOrigin: origin,
       projectDraft: draftFromProject(project, current.customers, presetCustomerId),
+      serviceDraft: null,
     }));
   }, [draftFromProject]);
+
+  const draftFromService = useCallback((service: Service | null): ServiceForm => (
+    service
+      ? {
+          id: service.id,
+          name: service.name,
+          rates: service.rates,
+          newRateAmount: String(currentRatePeriod(service.rates)?.amount ?? ''),
+          newRateFrom: iso(new Date()),
+        }
+      : {
+          id: null,
+          name: '',
+          rates: [{ id: uid(), amount: 600, from: iso(new Date()), to: null }],
+          newRateAmount: '600',
+          newRateFrom: iso(new Date()),
+        }
+  ), []);
+
+  const openServiceDetail = useCallback((service: Service | null) => {
+    setState((current) => ({
+      ...current,
+      page: 'serviceDetail',
+      selectedProjectId: null,
+      selectedServiceId: service?.id ?? null,
+      projectDraft: null,
+      projectOrigin: null,
+      serviceDraft: draftFromService(service),
+    }));
+  }, [draftFromService]);
 
   const backFromProjectDetail = useCallback(() => {
     setState((current) => {
@@ -470,6 +558,15 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         projectOrigin: null,
       };
     });
+  }, []);
+
+  const backFromServiceDetail = useCallback(() => {
+    setState((current) => ({
+      ...current,
+      page: 'services',
+      selectedServiceId: null,
+      serviceDraft: null,
+    }));
   }, []);
 
   const navCustomerDetail = useCallback((customerId: string) => {
@@ -639,6 +736,124 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     backFromProjectDetail();
   }, [backFromProjectDetail]);
 
+  const updateServiceDraft = useCallback((key: 'name' | 'newRateAmount' | 'newRateFrom', value: string) => {
+    setState((current) => {
+      if (!current.serviceDraft) {
+        return current;
+      }
+
+      return { ...current, serviceDraft: { ...current.serviceDraft, [key]: value } };
+    });
+  }, []);
+
+  const updateServiceDraftRates = useCallback((rates: RatePeriod[]) => {
+    setState((current) => {
+      if (!current.serviceDraft) {
+        return current;
+      }
+
+      return { ...current, serviceDraft: { ...current.serviceDraft, rates } };
+    });
+  }, []);
+
+  const addServiceRate = useCallback(() => {
+    const draft = stateRef.current.serviceDraft;
+    if (!draft) {
+      return;
+    }
+
+    const amount = Number.parseFloat(draft.newRateAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || !draft.newRateFrom) {
+      return;
+    }
+
+    const next = addRatePeriod(draft.rates, uid(), amount, draft.newRateFrom);
+    if (next === draft.rates) {
+      window.alert('New rate must start after the current period began.');
+      return;
+    }
+
+    updateServiceDraftRates(next);
+  }, [updateServiceDraftRates]);
+
+  const updateServiceRateField = useCallback((id: string, field: 'amount' | 'from' | 'to', value: string) => {
+    const draft = stateRef.current.serviceDraft;
+    if (!draft) {
+      return;
+    }
+
+    const next = draft.rates.map((rate) => {
+      if (rate.id !== id) {
+        return rate;
+      }
+
+      if (field === 'amount') {
+        return { ...rate, amount: Number.parseFloat(value) || 0 };
+      }
+      if (field === 'from') {
+        return { ...rate, from: value };
+      }
+      return { ...rate, to: value || null };
+    });
+
+    updateServiceDraftRates(next);
+  }, [updateServiceDraftRates]);
+
+  const deleteServiceRate = useCallback((id: string) => {
+    const draft = stateRef.current.serviceDraft;
+    if (!draft || draft.rates.length <= 1) {
+      return;
+    }
+
+    updateServiceDraftRates(draft.rates.filter((rate) => rate.id !== id));
+  }, [updateServiceDraftRates]);
+
+  const saveServiceDraft = useCallback(() => {
+    const draft = stateRef.current.serviceDraft;
+    if (!draft || !draft.name.trim() || draft.rates.length === 0) {
+      return;
+    }
+
+    if (hasOverlap(draft.rates)) {
+      window.alert('Rate periods overlap. Adjust the from/to dates before saving.');
+      return;
+    }
+
+    const rates = sortRates(draft.rates);
+    setState((current) => {
+      const id = draft.id || uid();
+      const savedService: Service = {
+        id,
+        name: draft.name.trim(),
+        rates,
+      };
+
+      return {
+        ...current,
+        services: draft.id
+          ? current.services.map((service) => (service.id === draft.id ? savedService : service))
+          : [...current.services, savedService],
+        selectedServiceId: id,
+        serviceDraft: { ...draft, id, rates },
+      };
+    });
+  }, []);
+
+  const deleteServiceDraft = useCallback(() => {
+    const draft = stateRef.current.serviceDraft;
+    if (!draft || !draft.id) {
+      return;
+    }
+
+    const id = draft.id;
+    setState((current) => ({
+      ...current,
+      services: current.services.filter((service) => service.id !== id),
+      entries: current.entries.filter((entry) => entry.serviceId !== id),
+    }));
+    backFromServiceDetail();
+  }, [backFromServiceDetail]);
+
   const pushStateNow = useCallback(async () => {
     const current = stateRef.current;
     if (current.demoMode) {
@@ -648,6 +863,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const data: PersistedData = {
       customers: current.customers,
       projects: current.projects,
+      services: current.services,
       entries: current.entries,
     };
 
@@ -666,6 +882,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
             ...snapshot,
             customers: remote.data.customers,
             projects: remote.data.projects,
+            services: remote.data.services,
             entries: remote.data.entries,
             stateEtag: remote.etag,
             syncStatus: 'conflict',
@@ -693,6 +910,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         ...snapshot,
         customers: remote.data.customers,
         projects: remote.data.projects,
+        services: remote.data.services,
         entries: remote.data.entries,
         stateEtag: remote.etag,
         syncStatus: 'synced',
@@ -785,22 +1003,34 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       const form = modal.form as EntryForm;
       const start = parseHM(form.start);
       const end = parseHM(form.end);
-      if (!form.projectId || end <= start) {
+      const invalidProject = form.kind === 'project' && !form.projectId;
+      const invalidService = form.kind === 'service' && (!form.serviceId || !form.customerId);
+      if (invalidProject || invalidService || end <= start) {
         return;
       }
 
       const id = form.id ?? uid();
+      const savedEntry: Entry = {
+        id,
+        kind: form.kind,
+        projectId: form.kind === 'project' ? form.projectId : null,
+        serviceId: form.kind === 'service' ? form.serviceId : null,
+        customerId: form.kind === 'service' ? form.customerId : null,
+        date: form.date,
+        start,
+        end,
+        comment: form.comment,
+        attachments: form.attachments,
+      };
       setState((current) => ({
         ...current,
         entries: current.entries.some((entry) => entry.id === id)
-          ? current.entries.map((entry) => (
-              entry.id === id
-                ? { ...entry, projectId: form.projectId, date: form.date, start, end, comment: form.comment, attachments: form.attachments }
-                : entry
-            ))
-          : [
+            ? current.entries.map((entry) => (
+                entry.id === id ? savedEntry : entry
+              ))
+            : [
               ...current.entries,
-              { id, projectId: form.projectId, date: form.date, start, end, comment: form.comment, attachments: form.attachments },
+              savedEntry,
             ],
         modal: null,
       }));
@@ -834,7 +1064,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         ...current,
         customers: current.customers.filter((customer) => customer.id !== id),
         projects: current.projects.filter((project) => project.customerId !== id),
-        entries: current.entries.filter((entry) => !projectIds.includes(entry.projectId)),
+        entries: current.entries.filter((entry) => !projectIds.includes(entry.projectId ?? '') && entry.customerId !== id),
         page: 'customers',
         selectedCustomerId: null,
       };
@@ -877,7 +1107,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         ...current,
         customers: current.customers.filter((customer) => customer.id !== id),
         projects: current.projects.filter((project) => project.customerId !== id),
-        entries: current.entries.filter((entry) => !projectIds.includes(entry.projectId)),
+        entries: current.entries.filter((entry) => !projectIds.includes(entry.projectId ?? '') && entry.customerId !== id),
         modal: null,
       };
     });
@@ -898,6 +1128,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           ...current,
           customers: demoData.customers,
           projects: demoData.projects,
+          services: demoData.services,
           entries: demoData.entries,
           page: 'track',
           modal: null,
@@ -905,8 +1136,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           syncStatus: 'idle',
           selectedCustomerId: null,
           selectedProjectId: null,
+          selectedServiceId: null,
           projectDraft: null,
           projectOrigin: null,
+          serviceDraft: null,
           exportScope: null,
           earningsFilter: null,
         };
@@ -918,6 +1151,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         ...current,
         customers: emptyData.customers,
         projects: emptyData.projects,
+        services: emptyData.services,
         entries: emptyData.entries,
         page: 'track',
         modal: null,
@@ -925,8 +1159,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         syncStatus: 'idle',
         selectedCustomerId: null,
         selectedProjectId: null,
+        selectedServiceId: null,
         projectDraft: null,
         projectOrigin: null,
+        serviceDraft: null,
         exportScope: null,
         earningsFilter: null,
       };
@@ -943,6 +1179,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         ...current,
         customers: data.customers,
         projects: data.projects,
+        services: data.services,
         entries: data.entries,
         demoMode: nextDemoMode,
         modal: null,
@@ -950,8 +1187,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         syncStatus: 'idle',
         selectedCustomerId: null,
         selectedProjectId: null,
+        selectedServiceId: null,
         projectDraft: null,
         projectOrigin: null,
+        serviceDraft: null,
       };
     });
   }, []);
@@ -962,8 +1201,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       page,
       selectedCustomerId: null,
       selectedProjectId: null,
+      selectedServiceId: null,
       projectDraft: null,
       projectOrigin: null,
+      serviceDraft: null,
       exportScope: null,
       earningsFilter: null,
     }));
@@ -1040,8 +1281,17 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         }
       }
 
-      const projectId = stateRef.current.projects[0]?.id || '';
-      openEntry({ projectId, date: drag.iso, start, end, comment: '' }, true);
+      const kind = stateRef.current.projects[0] ? 'project' : 'service';
+      openEntry({
+        kind,
+        projectId: kind === 'project' ? (stateRef.current.projects[0]?.id || '') : null,
+        serviceId: kind === 'service' ? (stateRef.current.services[0]?.id || '') : null,
+        customerId: kind === 'service' ? (stateRef.current.customers[0]?.id || '') : null,
+        date: drag.iso,
+        start,
+        end,
+        comment: '',
+      }, true);
     };
 
     window.addEventListener('pointermove', handleMove);
@@ -1058,6 +1308,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const data = {
       customers: state.customers,
       projects: state.projects,
+      services: state.services,
       entries: state.entries,
     };
 
@@ -1067,7 +1318,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }
 
     store.saveData(data);
-  }, [state.customers, state.demoMode, state.entries, state.projects]);
+  }, [state.customers, state.demoMode, state.entries, state.projects, state.services]);
 
   // Fetch the current user's identity once on mount so Settings can show who's
   // signed in (see the "owner" role gate in staticwebapp.config.json).
@@ -1106,7 +1357,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }, 1500);
 
     return () => window.clearTimeout(timer);
-  }, [state.customers, state.demoMode, state.entries, state.projects, pushStateNow]);
+  }, [state.customers, state.demoMode, state.entries, state.projects, state.services, pushStateNow]);
 
   const hpd = getHoursPerDay(settings);
   const ref = parseISO(state.refISO);
@@ -1120,6 +1371,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     return next;
   }, [state.projects]);
 
+  const serviceById = useMemo<Record<string, Service>>(() => {
+    const next: Record<string, Service> = {};
+    state.services.forEach((service) => {
+      next[service.id] = service;
+    });
+    return next;
+  }, [state.services]);
+
   const custById = useMemo<Record<string, Customer>>(() => {
     const next: Record<string, Customer> = {};
     state.customers.forEach((customer) => {
@@ -1129,17 +1388,24 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   }, [state.customers]);
 
   const entryEarn = useCallback((entry: Entry) => {
-    const project = projById[entry.projectId];
+    if (entry.kind === 'service') {
+      const service = serviceById[entry.serviceId ?? ''];
+      return service ? rateForDate(service.rates, entry.date) : 0;
+    }
+    const project = projById[entry.projectId ?? ''];
     return project ? (((entry.end - entry.start) / 60) / hpd) * rateForDate(project.rates, entry.date) : 0;
-  }, [hpd, projById]);
+  }, [hpd, projById, serviceById]);
 
   const isCustomerDetail = state.page === 'customerDetail';
   const isProjectDetail = state.page === 'projectDetail';
+  const isServiceDetail = state.page === 'serviceDetail';
   const navSection: RenderCtx['navSection'] = isCustomerDetail
     ? 'customers'
     : isProjectDetail
       ? (state.projectOrigin?.page === 'customerDetail' ? 'customers' : 'projects')
-      : (state.page === 'projects' || state.page === 'customers' || state.page === 'settings' || state.page === 'export' || state.page === 'earnings' ? state.page : 'track');
+      : isServiceDetail
+        ? 'services'
+        : (state.page === 'projects' || state.page === 'services' || state.page === 'customers' || state.page === 'settings' || state.page === 'export' || state.page === 'earnings' ? state.page : 'track');
 
   const ctx: RenderCtx = {
     S: state,
@@ -1149,14 +1415,17 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     ref,
     todayISO,
     projById,
+    serviceById,
     custById,
     entryEarn,
     isTrack: state.page === 'track',
     isProjects: state.page === 'projects',
+    isServices: state.page === 'services',
     isCustomers: state.page === 'customers',
     isSettings: state.page === 'settings',
     isCustomerDetail,
     isProjectDetail,
+    isServiceDetail,
     isExport: state.page === 'export',
     isEarnings: state.page === 'earnings',
     navSection,
@@ -1210,11 +1479,13 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       },
       navTrackStyle: navStyle(ctx.navSection === 'track', ctx.acc),
       navProjectsStyle: navStyle(ctx.navSection === 'projects', ctx.acc),
+      navServicesStyle: navStyle(ctx.navSection === 'services', ctx.acc),
       navCustomersStyle: navStyle(ctx.navSection === 'customers', ctx.acc),
       navExportStyle: navStyle(ctx.navSection === 'export', ctx.acc),
       navEarningsStyle: navStyle(ctx.navSection === 'earnings', ctx.acc),
       onNavTrack: () => setPage('track'),
       onNavProjects: () => setPage('projects'),
+      onNavServices: () => setPage('services'),
       onNavCustomers: () => setPage('customers'),
       onNavExport: () => openExport(null),
       onNavEarnings: () => openEarnings(null),
@@ -1305,6 +1576,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     } else if (ctx.isProjects) {
       headerTitle = 'Projects';
       headerSubtitle = `${ctx.S.projects.length} active`;
+    } else if (ctx.isServices) {
+      headerTitle = 'Services';
+      headerSubtitle = `${ctx.S.services.length} active`;
     } else if (ctx.isSettings) {
       headerTitle = 'Settings';
       headerSubtitle = 'Demo mode, Azure sync and data controls';
@@ -1320,6 +1594,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       const draft = ctx.S.projectDraft;
       headerTitle = draft?.name || 'New project';
       headerSubtitle = draft ? (ctx.custById[draft.customerId]?.name || '—') : '';
+    } else if (ctx.isServiceDetail) {
+      const draft = ctx.S.serviceDraft;
+      headerTitle = draft?.name || 'New service';
+      headerSubtitle = 'Recurring fixed-rate work';
     } else if (ctx.isExport) {
       headerTitle = 'Export timesheet';
       headerSubtitle = 'PDF + attachments for a customer or project';
@@ -1333,6 +1611,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       headerSubtitle,
       isTrack: ctx.isTrack,
       isProjects: ctx.isProjects,
+      isServices: ctx.isServices,
       isCustomers: ctx.isCustomers,
       tabDayStyle: tabStyle(ctx.isDay),
       tabWeekStyle: tabStyle(ctx.isWeek),
@@ -1373,9 +1652,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       },
       onNewEntry: openNewEntry,
       onNewProject: () => openProjectDetail(null, { page: 'projects' }),
+      onNewService: () => openServiceDetail(null),
       onNewCustomer: () => openCustomer(null),
     };
-  }, [ctx, openCustomer, openNewEntry, openProjectDetail, setRefISO, setView]);
+  }, [ctx, openCustomer, openNewEntry, openProjectDetail, openServiceDetail, setRefISO, setView]);
 
   const settingsProps = useMemo<SettingsViewProps | null>(() => {
     if (!ctx.isSettings) {
@@ -1450,7 +1730,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
             }
           : { fontSize: '17px', fontWeight: 600, color: '#1a1c20', lineHeight: '29px' },
         colStyle: colBase(dayISO),
-        entries: buildDayEntries(ctx.S.entries, ctx.projById, ctx.custById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
+        entries: buildDayEntries(ctx.S.entries, ctx.projById, ctx.serviceById, ctx.custById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
         drag: overlay ? overlay.style : null,
         dragLabel: overlay ? overlay.label : '',
         onPointerDown: (event) => onColPointerDown(dayISO, event),
@@ -1473,24 +1753,21 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const dayMinutes = dayEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
     const dayEarn = dayEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
-    const list: DayListRowVM[] = dayEntries.map((entry) => {
-      const project = ctx.projById[entry.projectId];
-      return {
-        id: entry.id,
-        projectName: project?.name || '—',
-        comment: entry.comment,
-        timeLabel: `${fmtMin(entry.start)}–${fmtMin(entry.end)} · ${fmtH(entry.end - entry.start)}`,
-        dotStyle: {
-          width: '10px',
-          height: '10px',
-          borderRadius: '3px',
-          background: colorForProject(project, ctx.custById),
-          flexShrink: 0,
-          marginTop: '4px',
-        },
-        onClick: () => openEntry(entry, false),
-      };
-    });
+    const list: DayListRowVM[] = dayEntries.map((entry) => ({
+      id: entry.id,
+      projectName: labelForEntry(entry, ctx.projById, ctx.serviceById, ctx.custById),
+      comment: entry.comment,
+      timeLabel: `${fmtMin(entry.start)}–${fmtMin(entry.end)} · ${fmtH(entry.end - entry.start)}`,
+      dotStyle: {
+        width: '10px',
+        height: '10px',
+        borderRadius: '3px',
+        background: colorForEntry(entry, ctx.projById, ctx.custById),
+        flexShrink: 0,
+        marginTop: '4px',
+      },
+      onClick: () => openEntry(entry, false),
+    }));
 
     return {
       dayData: {
@@ -1503,7 +1780,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           backgroundImage: `repeating-linear-gradient(to bottom, #eef0f3 0, #eef0f3 1px, transparent 1px, transparent ${ROW}px)`,
           backgroundPosition: `0 ${PAD}px`,
         },
-        entries: buildDayEntries(ctx.S.entries, ctx.projById, ctx.custById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
+        entries: buildDayEntries(ctx.S.entries, ctx.projById, ctx.serviceById, ctx.custById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
         drag: overlay ? overlay.style : null,
         dragLabel: overlay ? overlay.label : '',
         onPointerDown: (event) => onColPointerDown(dayISO, event),
@@ -1541,7 +1818,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         const colors: string[] = [];
 
         entries.forEach((entry) => {
-          const color = colorForProject(ctx.projById[entry.projectId], ctx.custById);
+          const color = colorForEntry(entry, ctx.projById, ctx.custById);
           if (!colors.includes(color)) {
             colors.push(color);
           }
@@ -1595,9 +1872,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }
 
     const projRows = ctx.S.projects.map((project) => {
-      const entries = ctx.S.entries.filter((entry) => entry.projectId === project.id);
+      const entries = ctx.S.entries.filter((entry) => entry.kind === 'project' && entry.projectId === project.id);
       const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
-      const earn = entries.reduce((sum, entry) => sum + (((entry.end - entry.start) / 60) / ctx.hpd) * rateForDate(project.rates, entry.date), 0);
+      const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
       return {
         id: project.id,
         name: project.name,
@@ -1613,6 +1890,29 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     return { projRows, projEmpty: projRows.length === 0 };
   }, [ctx, openProjectDetail]);
 
+  const servicesProps = useMemo<ServicesViewProps | null>(() => {
+    if (!ctx.isServices) {
+      return null;
+    }
+
+    const serviceRows = ctx.S.services.map((service, index) => {
+      const entries = ctx.S.entries.filter((entry) => entry.kind === 'service' && entry.serviceId === service.id);
+      const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+      const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+      return {
+        id: service.id,
+        name: service.name,
+        currentRate: fmtEUR(currentRatePeriod(service.rates)?.amount ?? 0),
+        hours: fmtH(minutes),
+        earn: fmtEUR(earn),
+        dotStyle: { width: '12px', height: '12px', borderRadius: '4px', background: PALETTE[index % PALETTE.length], flexShrink: 0 },
+        onClick: () => openServiceDetail(service),
+      };
+    });
+
+    return { serviceRows, serviceEmpty: serviceRows.length === 0 };
+  }, [ctx, openServiceDetail]);
+
   const customersProps = useMemo<CustomersViewProps | null>(() => {
     if (!ctx.isCustomers) {
       return null;
@@ -1621,7 +1921,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const custRows = ctx.S.customers.map((customer) => {
       const projects = ctx.S.projects.filter((project) => project.customerId === customer.id);
       const projectIds = projects.map((project) => project.id);
-      const entries = ctx.S.entries.filter((entry) => projectIds.includes(entry.projectId));
+      const entries = ctx.S.entries.filter(
+        (entry) => (entry.kind === 'project' && projectIds.includes(entry.projectId ?? '')) || (entry.kind === 'service' && entry.customerId === customer.id),
+      );
       const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
       const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
       return {
@@ -1687,6 +1989,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       isCustomerModal,
       canDelete,
       form: modal.form,
+      serviceOpts: ctx.S.services.map((service) => ({
+        id: service.id,
+        name: service.name,
+      })),
+      custOptsForEntry: ctx.S.customers.map((customer) => ({
+        id: customer.id,
+        name: customer.name,
+      })),
       projOpts: ctx.S.projects.map((project) => ({
         id: project.id,
         name: `${project.name}  ·  ${ctx.custById[project.customerId]?.name || '—'}`,
@@ -1705,7 +2015,23 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         fontSize: '13.5px',
         fontWeight: 600,
       },
+      onFormKind: (kind) => {
+        updateForm('kind', kind);
+        if (kind === 'project' && entryForm && !entryForm.projectId) {
+          updateForm('projectId', ctx.S.projects[0]?.id || '');
+        }
+        if (kind === 'service') {
+          if (entryForm && !entryForm.serviceId) {
+            updateForm('serviceId', ctx.S.services[0]?.id || '');
+          }
+          if (entryForm && !entryForm.customerId) {
+            updateForm('customerId', ctx.S.customers[0]?.id || '');
+          }
+        }
+      },
       onFormProject: (event: ChangeEvent<HTMLSelectElement>) => updateForm('projectId', event.target.value),
+      onFormService: (event: ChangeEvent<HTMLSelectElement>) => updateForm('serviceId', event.target.value),
+      onFormEntryCustomer: (event: ChangeEvent<HTMLSelectElement>) => updateForm('customerId', event.target.value),
       onFormDate: (event: ChangeEvent<HTMLInputElement>) => updateForm('date', event.target.value),
       onFormStart: (event: ChangeEvent<HTMLInputElement>) => updateForm('start', event.target.value),
       onFormEnd: (event: ChangeEvent<HTMLInputElement>) => updateForm('end', event.target.value),
@@ -1731,12 +2057,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const customer = ctx.custById[customerId];
     const projects = ctx.S.projects.filter((project) => project.customerId === customerId);
     const projectIds = projects.map((project) => project.id);
-    const entries = ctx.S.entries.filter((entry) => projectIds.includes(entry.projectId));
+    const entries = ctx.S.entries.filter(
+      (entry) => (entry.kind === 'project' && projectIds.includes(entry.projectId ?? '')) || (entry.kind === 'service' && entry.customerId === customerId),
+    );
     const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
     const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const projectRows: CustomerDetailProjectRowVM[] = projects.map((project) => {
-      const projectEntries = ctx.S.entries.filter((entry) => entry.projectId === project.id);
+      const projectEntries = ctx.S.entries.filter((entry) => entry.kind === 'project' && entry.projectId === project.id);
       const projectMinutes = projectEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
       const projectEarn = projectEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
       return {
@@ -1814,7 +2142,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onBack: backToCustomers,
       onNewProject: () => openProjectDetail(null, { page: 'customerDetail', customerId }, customerId),
       onDeleteCustomer: () => {
-        if (window.confirm(`Delete ${customer?.name || 'this customer'}? This removes all of its projects and entries.`)) {
+        if (window.confirm(`Delete ${customer?.name || 'this customer'}? This removes all of its projects and related entries, plus service bookings for this customer.`)) {
           deleteCustomerById(customerId);
         }
       },
@@ -1830,9 +2158,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
 
     const draft = ctx.S.projectDraft;
     const isNew = !draft.id;
-    const entries = draft.id ? ctx.S.entries.filter((entry) => entry.projectId === draft.id) : [];
+    const entries = draft.id ? ctx.S.entries.filter((entry) => entry.kind === 'project' && entry.projectId === draft.id) : [];
     const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
-    const earn = entries.reduce((sum, entry) => sum + (((entry.end - entry.start) / 60) / ctx.hpd) * rateForDate(draft.rates, entry.date), 0);
+    const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const rateRows: RatePeriodRowVM[] = sortRates(draft.rates).map((rate) => ({
       id: rate.id,
@@ -1908,6 +2236,74 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     };
   }, [addRate, backFromProjectDetail, ctx, deleteProjectDraft, deleteRate, openEarnings, openExport, saveProjectDraft, updateProjectDraft, updateRateField]);
 
+  const serviceDetailProps = useMemo<ServiceDetailViewProps | null>(() => {
+    if (!ctx.isServiceDetail || !ctx.S.serviceDraft) {
+      return null;
+    }
+
+    const draft = ctx.S.serviceDraft;
+    const isNew = !draft.id;
+    const entries = draft.id ? ctx.S.entries.filter((entry) => entry.kind === 'service' && entry.serviceId === draft.id) : [];
+    const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+
+    const rateRows: RatePeriodRowVM[] = sortRates(draft.rates).map((rate) => ({
+      id: rate.id,
+      amount: String(rate.amount),
+      from: rate.from,
+      to: rate.to ?? '',
+      isCurrent: rate.to === null,
+      onAmountChange: (event: ChangeEvent<HTMLInputElement>) => updateServiceRateField(rate.id, 'amount', event.target.value),
+      onFromChange: (event: ChangeEvent<HTMLInputElement>) => updateServiceRateField(rate.id, 'from', event.target.value),
+      onToChange: (event: ChangeEvent<HTMLInputElement>) => updateServiceRateField(rate.id, 'to', event.target.value),
+      onDelete: () => deleteServiceRate(rate.id),
+    }));
+
+    const inputStyle: CSSProperties = {
+      width: '100%',
+      padding: '10px 12px',
+      minHeight: '44px',
+      border: '1px solid #d7dadf',
+      borderRadius: '9px',
+      fontSize: '16px',
+      color: '#1a1c20',
+      background: '#fff',
+      outline: 'none',
+    };
+
+    return {
+      isNew,
+      saveLabel: isNew ? 'Create service' : 'Save changes',
+      serviceName: draft.name,
+      hours: fmtH(minutes),
+      earn: fmtEUR(earn),
+      canDelete: !isNew,
+      rateRows,
+      newRateAmount: draft.newRateAmount,
+      newRateFrom: draft.newRateFrom,
+      inputStyle,
+      labelStyle: { display: 'block', fontSize: '12px', fontWeight: 500, color: '#626873', marginBottom: '6px' },
+      btnPrimaryLg: {
+        height: '38px',
+        padding: '0 20px',
+        border: 'none',
+        background: ctx.acc,
+        color: '#fff',
+        borderRadius: '9px',
+        cursor: 'pointer',
+        fontSize: '13.5px',
+        fontWeight: 600,
+      },
+      onNameChange: (event: ChangeEvent<HTMLInputElement>) => updateServiceDraft('name', event.target.value),
+      onNewRateAmountChange: (event: ChangeEvent<HTMLInputElement>) => updateServiceDraft('newRateAmount', event.target.value),
+      onNewRateFromChange: (event: ChangeEvent<HTMLInputElement>) => updateServiceDraft('newRateFrom', event.target.value),
+      onAddRate: addServiceRate,
+      onSave: saveServiceDraft,
+      onDelete: deleteServiceDraft,
+      onBack: backFromServiceDetail,
+    };
+  }, [addServiceRate, backFromServiceDetail, ctx, deleteServiceDraft, deleteServiceRate, saveServiceDraft, updateServiceDraft, updateServiceRateField]);
+
   const exportProps = useMemo<ExportViewProps | null>(() => {
     if (!ctx.isExport) {
       return null;
@@ -1916,6 +2312,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     return {
       customers: ctx.S.customers,
       projects: ctx.S.projects,
+      services: ctx.S.services,
       entries: ctx.S.entries,
       hoursPerDay: ctx.hpd,
       initialScope: ctx.S.exportScope,
@@ -1931,6 +2328,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     return {
       customers: ctx.S.customers,
       projects: ctx.S.projects,
+      services: ctx.S.services,
       entries: ctx.S.entries,
       hoursPerDay: ctx.hpd,
       initialFilter: ctx.S.earningsFilter,
@@ -1943,10 +2341,12 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     showDay: ctx.isTrack && ctx.isDay,
     showMonth: ctx.isTrack && ctx.isMonth,
     showProjects: ctx.isProjects,
+    showServices: ctx.isServices,
     showCustomers: ctx.isCustomers,
     showSettings: ctx.isSettings,
     showCustomerDetail: ctx.isCustomerDetail,
     showProjectDetail: ctx.isProjectDetail,
+    showServiceDetail: ctx.isServiceDetail,
     showExport: ctx.isExport,
     showEarnings: ctx.isEarnings,
     modalOpen: Boolean(ctx.S.modal),
@@ -1956,10 +2356,12 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     dayProps,
     monthProps,
     projectsProps,
+    servicesProps,
     customersProps,
     settingsProps,
     customerDetailProps,
     projectDetailProps,
+    serviceDetailProps,
     exportProps,
     earningsProps,
     modalProps,

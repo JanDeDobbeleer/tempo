@@ -1,4 +1,4 @@
-import type { AttachmentRef, PersistedData } from '../types';
+import type { AttachmentRef, Entry, PersistedData } from '../types';
 
 const STORAGE_KEY = 'tempo.v1';
 const DEMO_STORAGE_KEY = 'tempo.demo.v1';
@@ -12,7 +12,27 @@ function isPersistedData(value: unknown): value is PersistedData {
   const candidate = value as Partial<PersistedData>;
   return Array.isArray(candidate.customers)
     && Array.isArray(candidate.projects)
+    && (candidate.services === undefined || Array.isArray(candidate.services))
     && Array.isArray(candidate.entries);
+}
+
+function normalizeEntry(entry: Entry): Entry {
+  return {
+    ...entry,
+    kind: entry.kind ?? 'project',
+    projectId: entry.projectId ?? null,
+    serviceId: entry.serviceId ?? null,
+    customerId: entry.customerId ?? null,
+  };
+}
+
+function normalizePersistedData(data: PersistedData): PersistedData {
+  return {
+    customers: data.customers,
+    projects: data.projects,
+    services: data.services ?? [],
+    entries: data.entries.map((entry) => normalizeEntry(entry)),
+  };
 }
 
 // ─── local cache (localStorage) ──────────────────────────────────────────
@@ -72,7 +92,7 @@ function loadPersistedData(key: string): PersistedData | null {
     }
 
     const parsed: unknown = JSON.parse(raw);
-    return isPersistedData(parsed) ? parsed : null;
+    return isPersistedData(parsed) ? normalizePersistedData(parsed) : null;
   } catch {
     return null;
   }
@@ -83,6 +103,7 @@ function savePersistedData(key: string, data: PersistedData): void {
     window.localStorage.setItem(key, JSON.stringify({
       customers: data.customers,
       projects: data.projects,
+      services: data.services,
       entries: data.entries,
     }));
   } catch {
@@ -140,7 +161,7 @@ export async function fetchState(): Promise<RemoteState> {
     throw new Error('Invalid data format returned from server.');
   }
 
-  return { data: parsed, etag };
+  return { data: normalizePersistedData(parsed), etag };
 }
 
 export async function saveState(data: PersistedData, etag: string): Promise<{ etag: string }> {
@@ -153,6 +174,7 @@ export async function saveState(data: PersistedData, etag: string): Promise<{ et
     body: JSON.stringify({
       customers: data.customers,
       projects: data.projects,
+      services: data.services,
       entries: data.entries,
     }),
   });
