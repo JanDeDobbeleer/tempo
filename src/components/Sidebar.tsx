@@ -53,7 +53,12 @@ const Sidebar: FC<SidebarProps> = ({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 22px' }}>
-        <div style={logoStyle}>T</div>
+        <div style={logoStyle}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 7v5l3.5 2"></path>
+          </svg>
+        </div>
         <div style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}>Tempo</div>
       </div>
 
