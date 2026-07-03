@@ -159,6 +159,9 @@ export interface SidebarProps {
   syncLabel: string;
   syncStatus: SyncStatus;
   onOpenSettings: () => void;
+  accent: string;
+  isAuthenticated: boolean;
+  onSignIn: () => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -570,6 +573,8 @@ export interface SettingsViewProps {
   onSyncNow: () => void;
   signedInAs: string;
   onSignOut: () => void;
+  isAuthenticated: boolean;
+  onSignIn: () => void;
 
   // Danger zone
   onDeleteAll: () => void;

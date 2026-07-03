@@ -28,6 +28,9 @@ function makeProps(overrides: Partial<SidebarProps> = {}): SidebarProps {
     syncLabel: 'Saved in browser',
     syncStatus: 'idle',
     onOpenSettings: vi.fn(),
+    accent: '#2563eb',
+    isAuthenticated: true,
+    onSignIn: vi.fn(),
     ...overrides,
   }
 }

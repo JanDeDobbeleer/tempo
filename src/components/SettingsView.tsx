@@ -32,6 +32,8 @@ const SettingsView: FC<SettingsViewProps> = ({
   onSyncNow,
   signedInAs,
   onSignOut,
+  isAuthenticated,
+  onSignIn,
   onDeleteAll,
 }) => (
   <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
@@ -85,42 +87,71 @@ const SettingsView: FC<SettingsViewProps> = ({
         </div>
 
         <div style={{ marginTop: '18px', display: 'grid', gap: '16px' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0,1fr) auto',
-              gap: '12px',
-              alignItems: 'center',
-              padding: '14px 16px',
-              borderRadius: '10px',
-              border: '1px solid #eef0f3',
-              background: '#fbfcfd',
-            }}
-          >
-            <div>
-              <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#9ca3af', fontFamily: "'Geist Mono',monospace" }}>
-                Signed in as
-              </div>
-              <div style={{ marginTop: '4px', fontSize: '13px', fontFamily: "'Geist Mono',monospace", color: '#1a1c20' }}>
-                {signedInAs || 'Unknown'}
-              </div>
-            </div>
+          {isAuthenticated ? (
+            <>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0,1fr) auto',
+                  gap: '12px',
+                  alignItems: 'center',
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #eef0f3',
+                  background: '#fbfcfd',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#9ca3af', fontFamily: "'Geist Mono',monospace" }}>
+                    Signed in as
+                  </div>
+                  <div style={{ marginTop: '4px', fontSize: '13px', fontFamily: "'Geist Mono',monospace", color: '#1a1c20' }}>
+                    {signedInAs || 'Unknown'}
+                  </div>
+                </div>
 
-            <div style={{ fontSize: '13px', fontWeight: 500, color: syncStatusColor }}>{syncStatusLabel}</div>
-          </div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: syncStatusColor }}>{syncStatusLabel}</div>
+              </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-            <button
-              type="button"
-              style={{ ...secondaryButtonStyle, background: '#1a1c20', borderColor: '#1a1c20', color: '#fff' }}
-              onClick={onSyncNow}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                <button
+                  type="button"
+                  style={{ ...secondaryButtonStyle, background: '#1a1c20', borderColor: '#1a1c20', color: '#fff' }}
+                  onClick={onSyncNow}
+                >
+                  Sync now
+                </button>
+                <button type="button" style={secondaryButtonStyle} onClick={onSignOut}>
+                  Sign out
+                </button>
+              </div>
+            </>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                flexWrap: 'wrap',
+                padding: '14px 16px',
+                borderRadius: '10px',
+                border: '1px solid #eef0f3',
+                background: '#fbfcfd',
+              }}
             >
-              Sync now
-            </button>
-            <button type="button" style={secondaryButtonStyle} onClick={onSignOut}>
-              Sign out
-            </button>
-          </div>
+              <div style={{ fontSize: '13px', color: '#626873' }}>
+                Sign in with GitHub to sync your data with Azure.
+              </div>
+              <button
+                type="button"
+                style={{ ...secondaryButtonStyle, background: '#1a1c20', borderColor: '#1a1c20', color: '#fff', flexShrink: 0 }}
+                onClick={onSignIn}
+              >
+                Sign in with GitHub
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

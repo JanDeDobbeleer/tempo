@@ -82,6 +82,7 @@ type TempoState = PersistedData & {
   attachmentUploading: boolean;
   attachmentError: string;
   userDisplayName: string;
+  isAuthenticated: boolean;
   selectedCustomerId: string | null;
   selectedProjectId: string | null;
   selectedServiceId: string | null;
@@ -177,6 +178,7 @@ function createStateFromData(data: PersistedData, demoMode: boolean): TempoState
     attachmentUploading: false,
     attachmentError: '',
     userDisplayName: '',
+    isAuthenticated: true,
     selectedCustomerId: null,
     selectedProjectId: null,
     selectedServiceId: null,
@@ -923,6 +925,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }
   }, []);
 
+  const signIn = useCallback(() => {
+    window.location.href = '/.auth/login/github';
+  }, []);
+
   const signOut = useCallback(() => {
     window.location.href = '/.auth/logout?post_logout_redirect_uri=/';
   }, []);
@@ -1254,16 +1260,61 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     store.saveData(data);
   }, [state.customers, state.demoMode, state.entries, state.projects, state.services]);
 
-  // Fetch the current user's identity once on mount so Settings can show who's
-  // signed in (see the "owner" role gate in staticwebapp.config.json).
+  // Fetch the current user's identity once on mount. When unauthenticated
+  // (no clientPrincipal with the owner role) the app falls back to demo mode
+  // automatically so visitors can explore the app without signing in.
   useEffect(() => {
     fetch('/.auth/me')
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: { clientPrincipal?: { userDetails?: string } } | null) => {
-        const userDetails = body?.clientPrincipal?.userDetails;
-        if (userDetails) {
-          setState((current) => ({ ...current, userDisplayName: userDetails }));
+      .then((body: { clientPrincipal?: { userDetails?: string; userRoles?: string[] } | null } | null) => {
+        const principal = body?.clientPrincipal;
+        const isOwner = principal?.userRoles?.includes('owner') ?? false;
+
+        if (!isOwner) {
+          setState((current) => {
+            const nextDemoMode = true;
+            const data = getStoreData(nextDemoMode);
+            store.setDemoModeFlag(nextDemoMode);
+            return {
+              ...current,
+              isAuthenticated: false,
+              demoMode: nextDemoMode,
+              customers: data.customers,
+              projects: data.projects,
+              services: data.services,
+              entries: data.entries,
+              syncStatus: 'idle',
+            };
+          });
+          return;
         }
+
+        setState((current) => {
+          // If the user just signed in while demo mode was active (e.g. they
+          // browsed as a guest and then authenticated), exit demo mode now so
+          // real data syncs immediately.
+          if (current.demoMode) {
+            store.setDemoModeFlag(false);
+            const realData = store.loadData() || createEmptyData();
+            return {
+              ...current,
+              isAuthenticated: true,
+              userDisplayName: principal?.userDetails ?? '',
+              demoMode: false,
+              customers: realData.customers,
+              projects: realData.projects,
+              services: realData.services,
+              entries: realData.entries,
+              syncStatus: 'idle',
+            };
+          }
+
+          return {
+            ...current,
+            isAuthenticated: true,
+            userDisplayName: principal?.userDetails ?? '',
+          };
+        });
       })
       .catch(() => {
         // No auth proxy in local dev; ignore.
@@ -1420,8 +1471,11 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       syncLabel,
       syncStatus: ctx.S.syncStatus,
       onOpenSettings: openSettings,
+      accent: ctx.acc,
+      isAuthenticated: ctx.S.isAuthenticated,
+      onSignIn: signIn,
     };
-  }, [ctx, openEarnings, openExport, openSettings, setPage]);
+  }, [ctx, openEarnings, openExport, openSettings, setPage, signIn]);
 
   const headerProps = useMemo<AppHeaderProps>(() => {
     const monthRef = ctx.calendarAnchor;
@@ -1521,11 +1575,15 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
 
     const { label: syncStatusLabel, color: syncStatusColor } = getSyncStatusMeta(ctx.S.demoMode, ctx.S.syncStatus);
 
+    const demoModeHint = ctx.S.isAuthenticated
+      ? 'Preview Tempo with example projects, customers and time entries. Your real data stays untouched and you can switch back anytime.'
+      : 'You\'re browsing as a guest. Sign in with GitHub to save your data and sync it across devices.';
+
     return {
       onBack: () => setPage('track'),
       demoMode: ctx.S.demoMode,
       onToggleDemoMode,
-      demoModeHint: 'Preview Tempo with example projects, customers and time entries. Your real data stays untouched and you can switch back anytime.',
+      demoModeHint,
       syncDisabled: DEV_MODE || ctx.S.demoMode,
       syncStatusLabel,
       syncStatusColor,
@@ -1534,9 +1592,11 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       },
       signedInAs: ctx.S.userDisplayName,
       onSignOut: signOut,
+      isAuthenticated: ctx.S.isAuthenticated,
+      onSignIn: signIn,
       onDeleteAll: resetData,
     };
-  }, [ctx, onToggleDemoMode, pushStateNow, resetData, setPage, signOut]);
+  }, [ctx, onToggleDemoMode, pushStateNow, resetData, setPage, signIn, signOut]);
 
   const trackProps = useMemo<TrackViewProps | null>(() => {
     if (!ctx.isTrack) {

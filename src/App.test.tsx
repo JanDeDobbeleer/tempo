@@ -112,6 +112,9 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       syncLabel: 'Saved in browser',
       syncStatus: 'idle',
       onOpenSettings: vi.fn(),
+      accent: '#2563eb',
+      isAuthenticated: true,
+      onSignIn: vi.fn(),
     },
     headerProps: {
       headerTitle: 'Track',

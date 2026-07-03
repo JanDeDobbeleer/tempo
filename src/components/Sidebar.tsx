@@ -60,6 +60,9 @@ const Sidebar: FC<SidebarProps> = ({
   syncLabel,
   syncStatus,
   onOpenSettings,
+  accent,
+  isAuthenticated,
+  onSignIn,
   isOpen,
   onClose,
 }) => {
@@ -214,32 +217,51 @@ const Sidebar: FC<SidebarProps> = ({
         </div>
       </div>
 
+      {!isAuthenticated && (
+        <button
+          type="button"
+          style={{
+            marginTop: '10px',
+            width: '100%',
+            height: '40px',
+            border: 'none',
+            background: accent,
+            color: '#fff',
+            borderRadius: '9px',
+            cursor: 'pointer',
+            fontSize: '13.5px',
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+          }}
+          onClick={onSignIn}
+        >
+          Sign in with GitHub
+        </button>
+      )}
+
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginTop: '12px',
-          padding: '0 6px',
+          marginTop: '4px',
         }}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: syncColor }}>
           <SyncIcon status={syncStatus} />
           {syncLabel}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '3px', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            title="Settings"
-            onClick={handleOpenSettings}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8">
-              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
-              <path d="M19.4 13.5c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.85-1.44a.9.9 0 0 0 .21-1.15l-1.75-3.03a.9.9 0 0 0-1.1-.4l-2.18.88a7.4 7.4 0 0 0-1.73-1l-.33-2.32A.9.9 0 0 0 13.6 3h-3.5a.9.9 0 0 0-.9.76l-.33 2.32c-.63.25-1.21.59-1.73 1l-2.18-.88a.9.9 0 0 0-1.1.4L2.11 9.63a.9.9 0 0 0 .21 1.15L4.17 12.2c-.04.33-.06.66-.06 1s.02.67.06 1L2.32 15.6a.9.9 0 0 0-.21 1.15l1.75 3.03c.24.42.75.6 1.1.4l2.18-.88c.52.41 1.1.75 1.73 1l.33 2.32a.9.9 0 0 0 .9.76h3.5a.9.9 0 0 0 .9-.76l.33-2.32c.63-.25 1.21-.59 1.73-1l2.18.88c.42.17.93 0 1.1-.4l1.75-3.03a.9.9 0 0 0-.21-1.15L19.4 13.5Z" />
-            </svg>
-          </button>
-        </div>
+        <button
+          type="button"
+          style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '3px', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          title="Settings"
+          onClick={handleOpenSettings}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+            <path d="M19.4 13.5c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.85-1.44a.9.9 0 0 0 .21-1.15l-1.75-3.03a.9.9 0 0 0-1.1-.4l-2.18.88a7.4 7.4 0 0 0-1.73-1l-.33-2.32A.9.9 0 0 0 13.6 3h-3.5a.9.9 0 0 0-.9.76l-.33 2.32c-.63.25-1.21.59-1.73 1l-2.18-.88a.9.9 0 0 0-1.1.4L2.11 9.63a.9.9 0 0 0 .21 1.15L4.17 12.2c-.04.33-.06.66-.06 1s.02.67.06 1L2.32 15.6a.9.9 0 0 0-.21 1.15l1.75 3.03c.24.42.75.6 1.1.4l2.18-.88c.52.41 1.1.75 1.73 1l.33 2.32a.9.9 0 0 0 .9.76h3.5a.9.9 0 0 0 .9-.76l.33-2.32c.63-.25 1.21-.59 1.73-1l2.18.88c.42.17.93 0 1.1-.4l1.75-3.03a.9.9 0 0 0-.21-1.15L19.4 13.5Z" />
+          </svg>
+        </button>
       </div>
     </aside>
   )

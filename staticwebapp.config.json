@@ -3,18 +3,8 @@
     {
       "route": "/api/*",
       "allowedRoles": ["owner"]
-    },
-    {
-      "route": "/*",
-      "allowedRoles": ["owner"]
     }
   ],
-  "responseOverrides": {
-    "401": {
-      "redirect": "/.auth/login/github",
-      "statusCode": 302
-    }
-  },
   "platform": {
     "apiRuntime": "node:22"
   },
