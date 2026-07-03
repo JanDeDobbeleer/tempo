@@ -103,6 +103,7 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
               {rateRows.map((row) => (
                 <div
                   key={row.id}
+                  className="rate-history-row"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr 1fr auto',
@@ -144,7 +145,7 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginTop: '10px' }}>
+            <div className="new-rate-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginTop: '10px' }}>
               <input
                 type="number"
                 min="0"
@@ -211,9 +212,9 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
             marginTop: '20px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '16px' }} className="detail-section-header">
             <div style={{ fontSize: '15px', fontWeight: 600 }}>Timesheet entries</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px' }} className="detail-actions-row">
               <button
                 type="button"
                 onClick={onViewEarnings}

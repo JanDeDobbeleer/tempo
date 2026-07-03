@@ -178,7 +178,7 @@ const EarningsView: FC<EarningsViewProps> = ({ customers, projects, services, en
         </div>
 
         <section style={cardStyle}>
-          <div style={pillGroupStyle}>
+          <div className="pill-group" style={pillGroupStyle}>
             <button type="button" style={pillStyle(preset === 'month')} onClick={() => applyPreset('month')}>This month</button>
             <button type="button" style={pillStyle(preset === 'quarter')} onClick={() => applyPreset('quarter')}>This quarter</button>
             <button type="button" style={pillStyle(preset === 'year')} onClick={() => applyPreset('year')}>This year</button>
@@ -257,13 +257,14 @@ const EarningsView: FC<EarningsViewProps> = ({ customers, projects, services, en
         <section style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div style={{ fontSize: '15px', fontWeight: 600 }}>Breakdown</div>
-            <div style={pillGroupStyle}>
+            <div className="pill-group" style={pillGroupStyle}>
               <button type="button" style={pillStyle(groupBy === 'customer')} onClick={() => setGroupBy('customer')}>By customer</button>
               <button type="button" style={pillStyle(groupBy === 'project')} onClick={() => setGroupBy('project')}>By project</button>
             </div>
           </div>
 
           <div
+            className="earnings-breakdown-header"
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(0,2.2fr) 1fr 0.8fr 1.1fr 0.7fr',
@@ -287,6 +288,7 @@ const EarningsView: FC<EarningsViewProps> = ({ customers, projects, services, en
             {rows.map((row) => (
               <div
                 key={row.id}
+                className="earnings-breakdown-row"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'minmax(0,2.2fr) 1fr 0.8fr 1.1fr 0.7fr',

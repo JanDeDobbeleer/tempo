@@ -302,3 +302,135 @@ textarea {
     padding-left: 0 !important;
   }
 }
+
+/* ── Mobile layout fixes (views that don't receive isMobile prop) ── */
+@media (max-width: 767px) {
+  /* Calendar day cells: enforce 44px minimum touch target */
+  .cal-cell {
+    min-height: 48px !important;
+  }
+
+  /* Projects list: collapse 5-col table → name + earnings */
+  .proj-grid-header {
+    display: none !important;
+  }
+
+  /* 5-col ProjectsView rows: use proj-list-row for targeted nth-child hiding */
+  .proj-list-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+  }
+
+  /* hide customer (2), day-rate (3), logged (4) — show name (1) + earnings (5) */
+  .proj-list-row > :nth-child(2),
+  .proj-list-row > :nth-child(3),
+  .proj-list-row > :nth-child(4) {
+    display: none !important;
+  }
+
+  /* 4-col CustomerDetailView project rows: hide rate (2) + hours (3), keep earnings (4) */
+  .project-row:not(.proj-list-row) {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+  }
+
+  .project-row:not(.proj-list-row) > :nth-child(2),
+  .project-row:not(.proj-list-row) > :nth-child(3) {
+    display: none !important;
+  }
+
+  /* Services list: collapse 4-col table → name + earnings */
+  .svc-grid-header {
+    display: none !important;
+  }
+
+  .service-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+  }
+
+  /* hide flat-rate (2) + logged (3) */
+  .service-row > :nth-child(2),
+  .service-row > :nth-child(3) {
+    display: none !important;
+  }
+
+  /* Earnings breakdown: collapse 5-col table → name + earnings */
+  .earnings-breakdown-header {
+    display: none !important;
+  }
+
+  .earnings-breakdown-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+  }
+
+  /* hide hours (2), days (3), share (5) — keep name (1) + earnings (4) */
+  .earnings-breakdown-row > :nth-child(2),
+  .earnings-breakdown-row > :nth-child(3),
+  .earnings-breakdown-row > :nth-child(5) {
+    display: none !important;
+  }
+
+  /* Pill groups (date presets, groupBy): scroll horizontally, never wrap */
+  .pill-group {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pill-group > button {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Rate history rows: amount full-width on row 1; from + to on row 2; Remove below */
+  .rate-history-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .rate-history-row > :nth-child(1) {
+    grid-column: 1 / -1 !important; /* amount spans full width */
+  }
+
+  /* from (2) auto-places col 1 row 2; to (3) auto-places col 2 row 2 */
+  .rate-history-row > :nth-child(4) {
+    grid-column: 2 !important; /* Remove stays right on row 3 */
+    justify-self: end;
+    min-height: 44px;
+  }
+
+  /* New-rate row: amount full-width; date + Add-rate button side-by-side below */
+  .new-rate-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .new-rate-row > :nth-child(1) {
+    grid-column: 1 / -1 !important; /* new-rate amount spans full width */
+  }
+
+  /* from (2) auto-places col 1 row 2 */
+  .new-rate-row > :nth-child(3) {
+    grid-column: 2 !important; /* Add rate button sits right of date */
+    align-self: end;
+    min-height: 44px;
+  }
+
+  /* Detail-page section headers (title + action buttons): stack vertically */
+  .detail-section-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  /* Action button rows: allow wrapping, minimum touch height */
+  .detail-actions-row {
+    flex-wrap: wrap !important;
+    width: 100%;
+  }
+
+  .detail-actions-row > button {
+    white-space: nowrap !important;
+    min-height: 44px !important;
+    flex: 1 1 auto !important;
+  }
+}

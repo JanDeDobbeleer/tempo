@@ -6,6 +6,7 @@ const ProjectsView: FC<ProjectsViewProps> = ({ projRows, projEmpty }) => (
   <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
       <div
+        className="proj-grid-header"
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(0,2.2fr) 1.5fr 1fr 0.9fr 1.1fr',
@@ -29,7 +30,7 @@ const ProjectsView: FC<ProjectsViewProps> = ({ projRows, projEmpty }) => (
         {projRows.map((row) => (
           <div
             key={row.id}
-            className="project-row"
+            className="project-row proj-list-row"
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(0,2.2fr) 1.5fr 1fr 0.9fr 1.1fr',

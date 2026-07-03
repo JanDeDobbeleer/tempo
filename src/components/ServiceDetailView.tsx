@@ -83,6 +83,7 @@ const ServiceDetailView: FC<ServiceDetailViewProps> = ({
               {rateRows.map((row) => (
                 <div
                   key={row.id}
+                  className="rate-history-row"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr 1fr auto',
@@ -124,7 +125,7 @@ const ServiceDetailView: FC<ServiceDetailViewProps> = ({
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginTop: '10px' }}>
+            <div className="new-rate-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginTop: '10px' }}>
               <input
                 type="number"
                 min="0"

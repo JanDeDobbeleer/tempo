@@ -64,7 +64,7 @@ const App: FC = () => {
     }
   }, [isMobile]);
 
-  const fabConfig = !modalOpen
+  const fabConfig = !modalOpen && !sidebarOpen
     ? headerProps.isTrack
       ? { label: 'Add hours', onClick: headerProps.onNewEntry }
       : showProjects

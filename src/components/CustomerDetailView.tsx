@@ -118,9 +118,9 @@ const CustomerDetailView: FC<CustomerDetailViewProps> = ({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }} className="detail-section-header">
         <div style={{ fontSize: '15px', fontWeight: 600 }}>Projects</div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px' }} className="detail-actions-row">
           <button
             type="button"
             onClick={onViewEarnings}

@@ -6,6 +6,7 @@ const ServicesView: FC<ServicesViewProps> = ({ serviceRows, serviceEmpty }) => (
   <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
       <div
+        className="svc-grid-header"
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(0,2.4fr) 1fr 0.9fr 1.1fr',

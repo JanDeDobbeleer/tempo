@@ -10,7 +10,7 @@ const cardStyle: CSSProperties = {
 };
 
 const secondaryButtonStyle: CSSProperties = {
-  height: '38px',
+  height: '44px',
   padding: '0 14px',
   border: '1px solid #e2e4e8',
   background: '#fff',
@@ -71,7 +71,7 @@ const SettingsView: FC<SettingsViewProps> = ({
       </section>
 
       <section style={{ ...cardStyle, opacity: syncDisabled ? 0.6 : 1, pointerEvents: syncDisabled ? 'none' : undefined }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}>Azure sync</div>
             <div style={{ marginTop: '5px', fontSize: '13px', color: '#626873' }}>

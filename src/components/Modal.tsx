@@ -335,7 +335,7 @@ const Modal: FC<ModalProps> = ({
                       </div>
                     ))}
 
-                    <input type="file" multiple onChange={onAddAttachments} disabled={attachmentUploading} />
+                    <input type="file" multiple onChange={onAddAttachments} disabled={attachmentUploading} style={{ fontSize: '13px', width: '100%' }} />
                     {attachmentUploading && <div style={{ fontSize: '12px', color: '#9ca3af' }}>Uploading…</div>}
                     {attachmentError && <div style={{ fontSize: '12px', color: '#dc2626' }}>{attachmentError}</div>}
                   </div>

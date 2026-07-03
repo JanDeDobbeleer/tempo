@@ -27,7 +27,7 @@ const inputStyle: CSSProperties = {
 };
 
 const primaryButtonStyle: CSSProperties = {
-  height: '40px',
+  height: '44px',
   padding: '0 18px',
   border: 'none',
   background: '#1a1c20',
