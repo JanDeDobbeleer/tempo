@@ -60,11 +60,71 @@ e2e/                       # Playwright end-to-end specs
 .github/workflows/deploy.yml  # SWA CI/CD (build + deploy on push to main)
 ```
 
+## Feature authoring pattern
+
+Every feature that changes behaviour (not just style) follows this three-step
+sequence — **in order**, to keep TypeScript happy throughout:
+
+1. **`src/types.ts`** — add/extend the domain type and the view-model
+   interface for the affected component(s). Both sides of the state boundary
+   must agree before either compiles cleanly.
+
+2. **`src/hooks/useTempoState.ts`** — implement the business logic and extend
+   the view-model builder (`useMemo` block) to populate the new fields. This
+   file is the *only* place that reads or mutates domain state; components
+   never import from `store.ts` or access raw domain arrays.
+
+3. **The component** (`src/components/*.tsx`) — consume the new view-model
+   props. Accept data as props, render it, call callbacks. Done.
+
+Always run `npx tsc -b` after each step and fix errors before moving to the
+next. This prevents misleading type errors that look like step-3 bugs but are
+actually step-1 omissions.
+
+## Styling conventions
+
+Structural styles (dimensions, flex, colour, typography, spacing) live as
+**inline `style` props** (`CSSProperties` objects) in the TSX files and in
+`useTempoState.ts`. This is consistent throughout the codebase — do not
+introduce CSS modules, styled-components, or Tailwind.
+
+Anything requiring `@media`, `:hover`, `:active`, `transition`, `animation`,
+or `z-index` stacking belongs in **`src/index.css`** as a named CSS class.
+Components opt in via `className`.
+
+When adding a new page or panel that needs mobile adaptations, add the
+corresponding `@media (max-width: 767px)` block to `index.css`. The
+breakpoint values match the CSS custom properties:
+`--bp-mobile: 767px` / `--bp-tablet: 1023px`.
+
+## Mobile checklist
+
+Before considering any UI task complete, verify:
+
+- Tested at **375px viewport width** (iPhone SE / 14 Mini — the historically broken breakpoint)
+- All interactive elements have `min-height: 44px` (touch target minimum)
+- No `font-size` smaller than `16px` on `input`/`select`/`textarea` (prevents iOS Safari auto-zoom)
+- Full-height containers use `height: 100dvh` (with `100vh` fallback), not bare `100vh`
+- Sidebar drawer, FAB, and `isMobile` conditional rendering are all consistent for the affected page
+- Table-style list views have a `@media (max-width: 767px)` collapse rule in `index.css`
+
+Run `npm run test:e2e` — the Playwright suite includes viewport tests.
+
+See also: `.github/skills/tempo-mobile-layout/SKILL.md` for the full mobile
+contract including CSS class names, FAB rules, and common mistakes.
+
 ## Key conventions
 
 - **Domain types live in `src/types.ts`** — keep it in sync with both
   `useTempoState.ts` (state/business logic) and the presentational components
   that consume the resulting view models. Don't duplicate shape definitions.
+- **Entry kinds and earnings**: three `Entry.kind` values exist — `'project'`,
+  `'service'`, and `'customer'`. The earnings formula for each differs. Always
+  use `entryEarnValue()` from `src/lib/earnings.ts` — never duplicate the
+  formula inline. `customerId` is `null` on `'project'` entries (reach it via
+  `project.customerId`); it is set directly on `'service'` and `'customer'`
+  entries.
+
 - **New entries get their `id` assigned immediately** in `openEntry()` (not at
   save time), so attachments can be uploaded to `{entryId}/...` before the
   entry itself is persisted.
@@ -74,6 +134,18 @@ e2e/                       # Playwright end-to-end specs
 - **Attachment blob paths** are `{entryId}/{attachmentId}` — no filename in
   the path. Filename/contentType are stored as blob metadata / in the
   `AttachmentRef` record, not encoded in the path.
+- **Demo mode** is toggled via `store.getDemoModeFlag()` (a `localStorage`
+  boolean). When active, all reads/writes use the `tempo.demo.v1` localStorage
+  key and remote sync is fully bypassed. Any code path that reads or modifies
+  data must check `current.demoMode` and skip remote I/O, exactly as
+  `pushStateNow()` does.
+
+- **Delete cascades**: deleting a customer must also delete its projects and
+  all entries referencing those projects or the customer directly. Deleting a
+  project or service must also delete its entries. See `deleteCustomerById`,
+  `deleteProjectDraft`, and `deleteServiceDraft` in `useTempoState.ts` for the
+  pattern.
+
 - **SAS generation** in `api/src/functions/attachments.ts` uses a shared-key
   credential (`TEMPO_STORAGE_ACCOUNT_NAME` / `TEMPO_STORAGE_ACCOUNT_KEY` app
   settings) because **managed Functions in Azure Static Web Apps do not
@@ -124,3 +196,18 @@ considering a task done.
 If you need to change app settings, roles, or redeploy infra, prefer
 `az staticwebapp` / `az storage` CLI commands over manual portal changes so
 the setup stays reproducible and documented.
+
+## Agent routing
+
+Use the appropriate specialised skill or sub-agent for the following task types:
+
+| Task type | Skill / agent | Notes |
+|-----------|--------------|-------|
+| Any feature touching `useTempoState.ts`, `types.ts`, earnings, sync | `.github/skills/tempo-state-machine` | 3-file contract; ETag rules; `entryEarnValue()` |
+| Any UI / layout / CSS change | `.github/skills/tempo-mobile-layout` | Mobile checklist; FAB rules; breakpoints |
+| PDF export, `timesheetExport.ts`, IT depends branding | `.github/skills/tempo-pdf-export` | Brand palette constants; lazy-load rules; CORS |
+| Azure CLI operations (storage, SWA, CORS, roles) | `.github/skills/tempo-azure-ops` | **Set `az account set --subscription MVP` first** |
+| SWA configuration, deployment, auth setup | `.github/skills/azure-static-web-apps` | General SWA reference (already in repo) |
+| Mobile visual verification / screenshots | `agent-browser` skill at 375×812px | Before and after the change |
+| Security audit (auth rules, secrets, CORS headers) | `ce-security-sentinel` compound agent | Runs independently; do not modify code |
+
