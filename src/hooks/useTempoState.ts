@@ -376,8 +376,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   }, [openEntry]);
 
   const openNewEntry = useCallback(() => {
-    openNewEntryForDate(stateRef.current.refISO);
-  }, [openNewEntryForDate]);
+    openNewEntryForDate(selectedTrackDayISO ?? stateRef.current.refISO);
+  }, [openNewEntryForDate, selectedTrackDayISO]);
 
   const draftFromProject = useCallback((project: Project | null, customers: Customer[], presetCustomerId?: string): ProjectForm => (
     project
