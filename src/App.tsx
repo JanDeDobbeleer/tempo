@@ -10,6 +10,8 @@ import DayView from './components/DayView';
 import MonthView from './components/MonthView';
 import ProjectsView from './components/ProjectsView';
 import CustomersView from './components/CustomersView';
+import CustomerDetailView from './components/CustomerDetailView';
+import ProjectDetailView from './components/ProjectDetailView';
 import SettingsView from './components/SettingsView';
 import Modal from './components/Modal';
 
@@ -28,6 +30,8 @@ const App: FC = () => {
     showMonth,
     showProjects,
     showCustomers,
+    showCustomerDetail,
+    showProjectDetail,
     showSettings,
     modalOpen,
     sidebarProps,
@@ -37,6 +41,8 @@ const App: FC = () => {
     monthProps,
     projectsProps,
     customersProps,
+    customerDetailProps,
+    projectDetailProps,
     settingsProps,
     modalProps,
   } = useTempoState(SETTINGS);
@@ -53,6 +59,8 @@ const App: FC = () => {
         {showMonth && monthProps && <MonthView {...monthProps} />}
         {showProjects && projectsProps && <ProjectsView {...projectsProps} />}
         {showCustomers && customersProps && <CustomersView {...customersProps} />}
+        {showCustomerDetail && customerDetailProps && <CustomerDetailView {...customerDetailProps} />}
+        {showProjectDetail && projectDetailProps && <ProjectDetailView {...projectDetailProps} />}
         {showSettings && settingsProps && <SettingsView {...settingsProps} />}
       </main>
 

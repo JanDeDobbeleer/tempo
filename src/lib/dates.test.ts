@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { addDays, addMonths, iso, pad, parseISO, startOfWeek } from './dates';
+import { addDays, addMonths, fmtFullDate, fmtMonthYear, fmtShortDate, fmtShortDateYear, iso, pad, parseISO, startOfWeek } from './dates';
 
 describe('dates helpers', () => {
   test('pad prefixes single digits', () => {
@@ -22,5 +22,13 @@ describe('dates helpers', () => {
     const result = startOfWeek(parseISO('2026-07-02'));
     expect(iso(result)).toBe('2026-06-29');
     expect(result.getHours()).toBe(12);
+  });
+
+  test('date formatters render day before month, independent of locale', () => {
+    const d = parseISO('2026-07-01');
+    expect(fmtShortDate(d)).toBe('1 Jul');
+    expect(fmtShortDateYear(d)).toBe('1 Jul 2026');
+    expect(fmtMonthYear(d)).toBe('July 2026');
+    expect(fmtFullDate(d)).toBe('Wednesday, 1 July 2026');
   });
 });

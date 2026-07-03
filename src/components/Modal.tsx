@@ -1,18 +1,15 @@
 import type { FC } from 'react';
 
-import type { CustomerForm, EntryForm, ModalProps, ProjectForm } from '../types';
+import type { CustomerForm, EntryForm, ModalProps } from '../types';
 
 const Modal: FC<ModalProps> = ({
   modalTitle,
   saveLabel,
   isEntryModal,
-  isProjectModal,
   isCustomerModal,
   canDelete,
   form,
   projOpts,
-  custOpts,
-  colorSwatches,
   inputStyle,
   textareaStyle,
   labelStyle,
@@ -23,8 +20,6 @@ const Modal: FC<ModalProps> = ({
   onFormEnd,
   onFormComment,
   onFormName,
-  onFormCustomer,
-  onFormRate,
   onSave,
   onCancel,
   onDelete,
@@ -32,7 +27,6 @@ const Modal: FC<ModalProps> = ({
 }) => {
   // Safe casts: each isXModal flag guarantees which loose form shape is active.
   const entryForm = form as EntryForm;
-  const projectForm = form as ProjectForm;
   const customerForm = form as CustomerForm;
 
   return (
@@ -110,54 +104,6 @@ const Modal: FC<ModalProps> = ({
                   value={entryForm.comment}
                   onChange={onFormComment}
                 />
-              </div>
-            </>
-          )}
-
-          {isProjectModal && (
-            <>
-              <div>
-                <label style={labelStyle}>Project name</label>
-                <input
-                  type="text"
-                  style={inputStyle}
-                  placeholder="e.g. Website Redesign"
-                  value={projectForm.name}
-                  onChange={onFormName}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Customer</label>
-                <select style={inputStyle} value={projectForm.customerId} onChange={onFormCustomer}>
-                  {custOpts.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Day rate (€)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="10"
-                  style={inputStyle}
-                  placeholder="600"
-                  value={projectForm.dayRate}
-                  onChange={onFormRate}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Colour</label>
-                <div style={{ display: 'flex', gap: '9px' }}>
-                  {colorSwatches.map((swatch) => (
-                    <button key={swatch.color} style={swatch.style} onClick={swatch.onClick} />
-                  ))}
-                </div>
               </div>
             </>
           )}

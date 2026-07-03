@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type MouseEvent } from 'react';
 
-import { addDays, addMonths, iso, parseISO, startOfWeek } from '../lib/dates';
+import { addDays, addMonths, fmtFullDate, fmtMonthYear, fmtShortDate, fmtShortDateYear, iso, parseISO, startOfWeek } from '../lib/dates';
 import { fmtEUR, fmtH, fmtMin, hexToRgba, parseHM, uid } from '../lib/format';
+import { addRatePeriod, currentRatePeriod, hasOverlap, rateForDate, sortRates } from '../lib/rates';
 import * as store from '../lib/store';
 import type {
   AppHeaderProps,
+  ColorSwatchVM,
   Customer,
+  CustomerDetailProjectRowVM,
+  CustomerDetailViewProps,
   CustomerForm,
   CustomersViewProps,
   DayListRowVM,
@@ -23,8 +27,11 @@ import type {
   Page,
   PersistedData,
   Project,
+  ProjectDetailViewProps,
   ProjectForm,
   ProjectsViewProps,
+  RatePeriod,
+  RatePeriodRowVM,
   SettingsViewProps,
   SidebarProps,
   TempoSettings,
@@ -39,6 +46,15 @@ const START = 7;
 const END = 22;
 const PAD = 12;
 
+const PALETTE = ['#2563eb', '#0d9488', '#7c3aed', '#d97706', '#db2777', '#65a30d', '#0891b2', '#dc2626'];
+
+function colorForProject(project: Project | undefined, custById: Record<string, Customer>): string {
+  if (!project) {
+    return '#9ca3af';
+  }
+  return custById[project.customerId]?.color || '#9ca3af';
+}
+
 type TempoState = PersistedData & {
   page: Page;
   view: View;
@@ -50,7 +66,13 @@ type TempoState = PersistedData & {
   patInput: string;
   gistId: string;
   gistStatus: GistStatus;
+  selectedCustomerId: string | null;
+  selectedProjectId: string | null;
+  projectDraft: ProjectForm | null;
+  projectOrigin: ProjectOrigin | null;
 };
+
+type ProjectOrigin = { page: 'projects' } | { page: 'customerDetail'; customerId: string };
 
 type EntryDraft = Pick<Entry, 'projectId' | 'date' | 'start' | 'end' | 'comment'> & Partial<Pick<Entry, 'id'>>;
 
@@ -68,6 +90,9 @@ type RenderCtx = {
   isProjects: boolean;
   isCustomers: boolean;
   isSettings: boolean;
+  isCustomerDetail: boolean;
+  isProjectDetail: boolean;
+  navSection: 'track' | 'projects' | 'customers' | 'settings';
   isWeek: boolean;
   isDay: boolean;
   isMonth: boolean;
@@ -180,6 +205,10 @@ function createStateFromData(data: PersistedData, demoMode: boolean): TempoState
     patInput: githubPAT,
     gistId: store.getGistId(),
     gistStatus: 'idle',
+    selectedCustomerId: null,
+    selectedProjectId: null,
+    projectDraft: null,
+    projectOrigin: null,
   };
 }
 
@@ -196,16 +225,17 @@ function makeEntry(
 
 function createDemoSeed(): PersistedData {
   const customers: Customer[] = [
-    { id: 'c1', name: 'Northwind Studio' },
-    { id: 'c2', name: 'Meridian Health' },
-    { id: 'c3', name: 'Atlas Logistics' },
+    { id: 'c1', name: 'Northwind Studio', color: '#2563eb' },
+    { id: 'c2', name: 'Meridian Health', color: '#7c3aed' },
+    { id: 'c3', name: 'Atlas Logistics', color: '#db2777' },
   ];
+  const seedRate = (id: string, amount: number): RatePeriod[] => [{ id, amount, from: '2020-01-01', to: null }];
   const projects: Project[] = [
-    { id: 'p1', name: 'Website Redesign', customerId: 'c1', dayRate: 650, color: '#2563eb' },
-    { id: 'p2', name: 'Mobile App', customerId: 'c1', dayRate: 720, color: '#0d9488' },
-    { id: 'p3', name: 'Brand System', customerId: 'c2', dayRate: 800, color: '#7c3aed' },
-    { id: 'p4', name: 'Analytics Dashboard', customerId: 'c2', dayRate: 680, color: '#d97706' },
-    { id: 'p5', name: 'Logistics Portal', customerId: 'c3', dayRate: 600, color: '#db2777' },
+    { id: 'p1', name: 'Website Redesign', customerId: 'c1', rates: seedRate('r1', 650) },
+    { id: 'p2', name: 'Mobile App', customerId: 'c1', rates: seedRate('r2', 720) },
+    { id: 'p3', name: 'Brand System', customerId: 'c2', rates: seedRate('r3', 800) },
+    { id: 'p4', name: 'Analytics Dashboard', customerId: 'c2', rates: seedRate('r4', 680) },
+    { id: 'p5', name: 'Logistics Portal', customerId: 'c3', rates: seedRate('r5', 600) },
   ];
 
   const weekStart = startOfWeek(new Date());
@@ -276,6 +306,7 @@ function createInitialState(): TempoState {
 function buildDayEntries(
   entries: Entry[],
   projById: Record<string, Project>,
+  custById: Record<string, Customer>,
   dayISO: string,
   openEntry: (entry: Entry, isNew: boolean) => void,
 ): EntryBlockVM[] {
@@ -283,13 +314,14 @@ function buildDayEntries(
     .filter((entry) => entry.date === dayISO)
     .sort((a, b) => a.start - b.start)
     .map((entry) => {
-      const project = projById[entry.projectId] || { name: '—', color: '#9ca3af' };
+      const project = projById[entry.projectId];
+      const color = colorForProject(project, custById);
       const top = minToY(entry.start);
       const height = Math.max(26, minToY(entry.end) - minToY(entry.start));
 
       return {
         id: entry.id,
-        projectName: project.name,
+        projectName: project?.name || '—',
         comment: entry.comment,
         timeLabel: `${fmtMin(entry.start)}–${fmtMin(entry.end)} · ${fmtH(entry.end - entry.start)}`,
         style: {
@@ -298,8 +330,8 @@ function buildDayEntries(
           right: '4px',
           top: `${top}px`,
           height: `${height}px`,
-          background: hexToRgba(project.color, 0.11),
-          borderLeft: `3px solid ${project.color}`,
+          background: hexToRgba(color, 0.11),
+          borderLeft: `3px solid ${color}`,
           borderRadius: '7px',
           padding: '5px 9px',
           cursor: 'pointer',
@@ -383,29 +415,56 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     openEntry({ projectId, date: stateRef.current.refISO, start: 540, end: 600, comment: '' }, true);
   }, [openEntry]);
 
-  const openProject = useCallback((project: Project | null) => {
+  const draftFromProject = useCallback((project: Project | null, customers: Customer[], presetCustomerId?: string): ProjectForm => (
+    project
+      ? {
+          id: project.id,
+          name: project.name,
+          customerId: project.customerId,
+          rates: project.rates,
+          newRateAmount: String(currentRatePeriod(project.rates)?.amount ?? ''),
+          newRateFrom: iso(new Date()),
+        }
+      : {
+          id: null,
+          name: '',
+          customerId: presetCustomerId || customers[0]?.id || '',
+          rates: [{ id: uid(), amount: 600, from: iso(new Date()), to: null }],
+          newRateAmount: '600',
+          newRateFrom: iso(new Date()),
+        }
+  ), []);
+
+  const openProjectDetail = useCallback((project: Project | null, origin: ProjectOrigin, presetCustomerId?: string) => {
     setState((current) => ({
       ...current,
-      modal: {
-        type: 'project',
-        isNew: !project,
-        form: project
-          ? {
-              id: project.id,
-              name: project.name,
-              customerId: project.customerId,
-              dayRate: String(project.dayRate),
-              color: project.color,
-            }
-          : {
-              id: null,
-              name: '',
-              customerId: current.customers[0]?.id || '',
-              dayRate: '600',
-              color: '#2563eb',
-            },
-      },
+      page: 'projectDetail',
+      selectedProjectId: project?.id ?? null,
+      projectOrigin: origin,
+      projectDraft: draftFromProject(project, current.customers, presetCustomerId),
     }));
+  }, [draftFromProject]);
+
+  const backFromProjectDetail = useCallback(() => {
+    setState((current) => {
+      const origin = current.projectOrigin;
+      return {
+        ...current,
+        page: origin?.page === 'customerDetail' ? 'customerDetail' : 'projects',
+        selectedCustomerId: origin?.page === 'customerDetail' ? origin.customerId : current.selectedCustomerId,
+        selectedProjectId: null,
+        projectDraft: null,
+        projectOrigin: null,
+      };
+    });
+  }, []);
+
+  const navCustomerDetail = useCallback((customerId: string) => {
+    setState((current) => ({ ...current, page: 'customerDetail', selectedCustomerId: customerId }));
+  }, []);
+
+  const backToCustomers = useCallback(() => {
+    setState((current) => ({ ...current, page: 'customers', selectedCustomerId: null }));
   }, []);
 
   const openCustomer = useCallback((customer: Customer | null) => {
@@ -414,7 +473,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       modal: {
         type: 'customer',
         isNew: !customer,
-        form: customer ? { id: customer.id, name: customer.name } : { id: null, name: '' },
+        form: customer
+          ? { id: customer.id, name: customer.name, color: customer.color }
+          : { id: null, name: '', color: PALETTE[current.customers.length % PALETTE.length] },
       },
     }));
   }, []);
@@ -445,6 +506,125 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       };
     });
   }, []);
+
+  const updateProjectDraft = useCallback((key: 'name' | 'customerId' | 'newRateAmount' | 'newRateFrom', value: string) => {
+    setState((current) => {
+      if (!current.projectDraft) {
+        return current;
+      }
+
+      return { ...current, projectDraft: { ...current.projectDraft, [key]: value } };
+    });
+  }, []);
+
+  const updateProjectDraftRates = useCallback((rates: RatePeriod[]) => {
+    setState((current) => {
+      if (!current.projectDraft) {
+        return current;
+      }
+
+      return { ...current, projectDraft: { ...current.projectDraft, rates } };
+    });
+  }, []);
+
+  const addRate = useCallback(() => {
+    const draft = stateRef.current.projectDraft;
+    if (!draft) {
+      return;
+    }
+
+    const amount = Number.parseFloat(draft.newRateAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || !draft.newRateFrom) {
+      return;
+    }
+
+    const next = addRatePeriod(draft.rates, uid(), amount, draft.newRateFrom);
+    if (next === draft.rates) {
+      window.alert('New rate must start after the current period began.');
+      return;
+    }
+
+    updateProjectDraftRates(next);
+  }, [updateProjectDraftRates]);
+
+  const updateRateField = useCallback((id: string, field: 'amount' | 'from' | 'to', value: string) => {
+    const draft = stateRef.current.projectDraft;
+    if (!draft) {
+      return;
+    }
+
+    const next = draft.rates.map((rate) => {
+      if (rate.id !== id) {
+        return rate;
+      }
+
+      if (field === 'amount') {
+        return { ...rate, amount: Number.parseFloat(value) || 0 };
+      }
+      if (field === 'from') {
+        return { ...rate, from: value };
+      }
+      return { ...rate, to: value || null };
+    });
+
+    updateProjectDraftRates(next);
+  }, [updateProjectDraftRates]);
+
+  const deleteRate = useCallback((id: string) => {
+    const draft = stateRef.current.projectDraft;
+    if (!draft || draft.rates.length <= 1) {
+      return;
+    }
+
+    updateProjectDraftRates(draft.rates.filter((rate) => rate.id !== id));
+  }, [updateProjectDraftRates]);
+
+  const saveProjectDraft = useCallback(() => {
+    const draft = stateRef.current.projectDraft;
+    if (!draft || !draft.name.trim() || draft.rates.length === 0) {
+      return;
+    }
+
+    if (hasOverlap(draft.rates)) {
+      window.alert('Rate periods overlap. Adjust the from/to dates before saving.');
+      return;
+    }
+
+    const rates = sortRates(draft.rates);
+    setState((current) => {
+      const id = draft.id || uid();
+      const savedProject: Project = {
+        id,
+        name: draft.name.trim(),
+        customerId: draft.customerId,
+        rates,
+      };
+
+      return {
+        ...current,
+        projects: draft.id
+          ? current.projects.map((project) => (project.id === draft.id ? savedProject : project))
+          : [...current.projects, savedProject],
+        selectedProjectId: id,
+        projectDraft: { ...draft, id, rates },
+      };
+    });
+  }, []);
+
+  const deleteProjectDraft = useCallback(() => {
+    const draft = stateRef.current.projectDraft;
+    if (!draft || !draft.id) {
+      return;
+    }
+
+    const id = draft.id;
+    setState((current) => ({
+      ...current,
+      projects: current.projects.filter((project) => project.id !== id),
+      entries: current.entries.filter((entry) => entry.projectId !== id),
+    }));
+    backFromProjectDetail();
+  }, [backFromProjectDetail]);
 
   const syncToGistNow = useCallback(async (patOverride?: string, gistIdOverride?: string) => {
     const current = stateRef.current;
@@ -534,42 +714,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       return;
     }
 
-    if (modal.type === 'project') {
-      const form = modal.form as ProjectForm;
-      if (!form.name.trim()) {
-        return;
-      }
-
-      const dayRate = Number.parseFloat(form.dayRate) || 0;
-      setState((current) => ({
-        ...current,
-        projects: form.id
-          ? current.projects.map((project) => (
-              project.id === form.id
-                ? {
-                    ...project,
-                    name: form.name.trim(),
-                    customerId: form.customerId,
-                    dayRate,
-                    color: form.color,
-                  }
-                : project
-            ))
-          : [
-              ...current.projects,
-              {
-                id: uid(),
-                name: form.name.trim(),
-                customerId: form.customerId,
-                dayRate,
-                color: form.color,
-              },
-            ],
-        modal: null,
-      }));
-      return;
-    }
-
     if (modal.type === 'customer') {
       const form = modal.form as CustomerForm;
       if (!form.name.trim()) {
@@ -582,12 +726,26 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           ? current.customers.map((customer) => (
               customer.id === form.id ? { ...customer, name: form.name.trim() } : customer
             ))
-          : [...current.customers, { id: uid(), name: form.name.trim() }],
+          : [...current.customers, { id: uid(), name: form.name.trim(), color: form.color }],
         modal: null,
       }));
       return;
     }
 
+  }, []);
+
+  const deleteCustomerById = useCallback((id: string) => {
+    setState((current) => {
+      const projectIds = current.projects.filter((project) => project.customerId === id).map((project) => project.id);
+      return {
+        ...current,
+        customers: current.customers.filter((customer) => customer.id !== id),
+        projects: current.projects.filter((project) => project.customerId !== id),
+        entries: current.entries.filter((entry) => !projectIds.includes(entry.projectId)),
+        page: 'customers',
+        selectedCustomerId: null,
+      };
+    });
   }, []);
 
   const deleteModal = useCallback(() => {
@@ -605,21 +763,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       setState((current) => ({
         ...current,
         entries: current.entries.filter((entry) => entry.id !== id),
-        modal: null,
-      }));
-      return;
-    }
-
-    if (modal.type === 'project') {
-      const id = (modal.form as ProjectForm).id;
-      if (!id) {
-        return;
-      }
-
-      setState((current) => ({
-        ...current,
-        projects: current.projects.filter((project) => project.id !== id),
-        entries: current.entries.filter((entry) => entry.projectId !== id),
         modal: null,
       }));
       return;
@@ -664,9 +807,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           customers: demoData.customers,
           projects: demoData.projects,
           entries: demoData.entries,
+          page: 'track',
           modal: null,
           drag: null,
           gistStatus: 'idle',
+          selectedCustomerId: null,
+          selectedProjectId: null,
+          projectDraft: null,
+          projectOrigin: null,
         };
       }
 
@@ -677,9 +825,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         customers: emptyData.customers,
         projects: emptyData.projects,
         entries: emptyData.entries,
+        page: 'track',
         modal: null,
         drag: null,
         gistStatus: 'idle',
+        selectedCustomerId: null,
+        selectedProjectId: null,
+        projectDraft: null,
+        projectOrigin: null,
       };
     });
   }, []);
@@ -699,12 +852,23 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         modal: null,
         drag: null,
         gistStatus: 'idle',
+        selectedCustomerId: null,
+        selectedProjectId: null,
+        projectDraft: null,
+        projectOrigin: null,
       };
     });
   }, []);
 
   const setPage = useCallback((page: Page) => {
-    setState((current) => ({ ...current, page }));
+    setState((current) => ({
+      ...current,
+      page,
+      selectedCustomerId: null,
+      selectedProjectId: null,
+      projectDraft: null,
+      projectOrigin: null,
+    }));
   }, []);
 
   const setView = useCallback((view: View) => {
@@ -833,8 +997,16 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
 
   const entryEarn = useCallback((entry: Entry) => {
     const project = projById[entry.projectId];
-    return project ? (((entry.end - entry.start) / 60) / hpd) * project.dayRate : 0;
+    return project ? (((entry.end - entry.start) / 60) / hpd) * rateForDate(project.rates, entry.date) : 0;
   }, [hpd, projById]);
+
+  const isCustomerDetail = state.page === 'customerDetail';
+  const isProjectDetail = state.page === 'projectDetail';
+  const navSection: RenderCtx['navSection'] = isCustomerDetail
+    ? 'customers'
+    : isProjectDetail
+      ? (state.projectOrigin?.page === 'customerDetail' ? 'customers' : 'projects')
+      : (state.page === 'projects' || state.page === 'customers' || state.page === 'settings' ? state.page : 'track');
 
   const ctx: RenderCtx = {
     S: state,
@@ -850,6 +1022,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     isProjects: state.page === 'projects',
     isCustomers: state.page === 'customers',
     isSettings: state.page === 'settings',
+    isCustomerDetail,
+    isProjectDetail,
+    navSection,
     isWeek: state.view === 'week',
     isDay: state.view === 'day',
     isMonth: state.view === 'month',
@@ -883,9 +1058,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         fontSize: '15px',
         flexShrink: 0,
       },
-      navTrackStyle: navStyle(ctx.isTrack, ctx.acc),
-      navProjectsStyle: navStyle(ctx.isProjects, ctx.acc),
-      navCustomersStyle: navStyle(ctx.isCustomers, ctx.acc),
+      navTrackStyle: navStyle(ctx.navSection === 'track', ctx.acc),
+      navProjectsStyle: navStyle(ctx.navSection === 'projects', ctx.acc),
+      navCustomersStyle: navStyle(ctx.navSection === 'customers', ctx.acc),
       onNavTrack: () => setPage('track'),
       onNavProjects: () => setPage('projects'),
       onNavCustomers: () => setPage('customers'),
@@ -901,14 +1076,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   const headerProps = useMemo<AppHeaderProps>(() => {
     const weekStart = startOfWeek(ctx.ref);
     const weekEnd = addDays(weekStart, 6);
-    const weekRange = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${weekEnd.getFullYear()}`;
-    const monthLabel = ctx.ref.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const dayFull = ctx.ref.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    const weekRange = `${fmtShortDate(weekStart)} – ${fmtShortDateYear(weekEnd)}`;
+    const monthLabel = fmtMonthYear(ctx.ref);
+    const dayFull = fmtFullDate(ctx.ref);
 
     const todayRef = parseISO(ctx.todayISO);
     const now = new Date();
@@ -983,9 +1153,18 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     } else if (ctx.isSettings) {
       headerTitle = 'Settings';
       headerSubtitle = 'Demo mode, GitHub sync and data controls';
-    } else {
+    } else if (ctx.isCustomers) {
       headerTitle = 'Customers';
       headerSubtitle = `${ctx.S.customers.length} total`;
+    } else if (ctx.isCustomerDetail) {
+      const customer = ctx.S.selectedCustomerId ? ctx.custById[ctx.S.selectedCustomerId] : undefined;
+      const projectCount = ctx.S.projects.filter((project) => project.customerId === ctx.S.selectedCustomerId).length;
+      headerTitle = customer?.name || 'Customer';
+      headerSubtitle = `${projectCount}${projectCount === 1 ? ' project' : ' projects'}`;
+    } else if (ctx.isProjectDetail) {
+      const draft = ctx.S.projectDraft;
+      headerTitle = draft?.name || 'New project';
+      headerSubtitle = draft ? (ctx.custById[draft.customerId]?.name || '—') : '';
     }
 
     return {
@@ -1032,10 +1211,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         whiteSpace: 'nowrap',
       },
       onNewEntry: openNewEntry,
-      onNewProject: () => openProject(null),
+      onNewProject: () => openProjectDetail(null, { page: 'projects' }),
       onNewCustomer: () => openCustomer(null),
     };
-  }, [ctx, openCustomer, openNewEntry, openProject, setRefISO, setView]);
+  }, [ctx, openCustomer, openNewEntry, openProjectDetail, setRefISO, setView]);
 
   const onPatChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
@@ -1142,7 +1321,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
             }
           : { fontSize: '17px', fontWeight: 600, color: '#1a1c20', lineHeight: '29px' },
         colStyle: colBase(dayISO),
-        entries: buildDayEntries(ctx.S.entries, ctx.projById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
+        entries: buildDayEntries(ctx.S.entries, ctx.projById, ctx.custById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
         drag: overlay ? overlay.style : null,
         dragLabel: overlay ? overlay.label : '',
         onMouseDown: (event) => onColMouseDown(dayISO, event),
@@ -1166,17 +1345,17 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const dayEarn = dayEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const list: DayListRowVM[] = dayEntries.map((entry) => {
-      const project = ctx.projById[entry.projectId] || { name: '—', color: '#9ca3af' };
+      const project = ctx.projById[entry.projectId];
       return {
         id: entry.id,
-        projectName: project.name,
+        projectName: project?.name || '—',
         comment: entry.comment,
         timeLabel: `${fmtMin(entry.start)}–${fmtMin(entry.end)} · ${fmtH(entry.end - entry.start)}`,
         dotStyle: {
           width: '10px',
           height: '10px',
           borderRadius: '3px',
-          background: project.color,
+          background: colorForProject(project, ctx.custById),
           flexShrink: 0,
           marginTop: '4px',
         },
@@ -1194,7 +1373,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           backgroundImage: `repeating-linear-gradient(to bottom, #eef0f3 0, #eef0f3 1px, transparent 1px, transparent ${ROW}px)`,
           backgroundPosition: `0 ${PAD}px`,
         },
-        entries: buildDayEntries(ctx.S.entries, ctx.projById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
+        entries: buildDayEntries(ctx.S.entries, ctx.projById, ctx.custById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
         drag: overlay ? overlay.style : null,
         dragLabel: overlay ? overlay.label : '',
         onMouseDown: (event) => onColMouseDown(dayISO, event),
@@ -1232,8 +1411,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         const colors: string[] = [];
 
         entries.forEach((entry) => {
-          const color = ctx.projById[entry.projectId]?.color;
-          if (color && !colors.includes(color)) {
+          const color = colorForProject(ctx.projById[entry.projectId], ctx.custById);
+          if (!colors.includes(color)) {
             colors.push(color);
           }
         });
@@ -1288,21 +1467,21 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const projRows = ctx.S.projects.map((project) => {
       const entries = ctx.S.entries.filter((entry) => entry.projectId === project.id);
       const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
-      const earn = ((minutes / 60) / ctx.hpd) * project.dayRate;
+      const earn = entries.reduce((sum, entry) => sum + (((entry.end - entry.start) / 60) / ctx.hpd) * rateForDate(project.rates, entry.date), 0);
       return {
         id: project.id,
         name: project.name,
         customerName: ctx.custById[project.customerId]?.name || '—',
-        dayRate: fmtEUR(project.dayRate),
+        dayRate: fmtEUR(currentRatePeriod(project.rates)?.amount ?? 0),
         hours: fmtH(minutes),
         earn: fmtEUR(earn),
-        dotStyle: { width: '12px', height: '12px', borderRadius: '4px', background: project.color, flexShrink: 0 },
-        onClick: () => openProject(project),
+        dotStyle: { width: '12px', height: '12px', borderRadius: '4px', background: colorForProject(project, ctx.custById), flexShrink: 0 },
+        onClick: () => openProjectDetail(project, { page: 'projects' }),
       };
     });
 
     return { projRows, projEmpty: projRows.length === 0 };
-  }, [ctx, openProject]);
+  }, [ctx, openProjectDetail]);
 
   const customersProps = useMemo<CustomersViewProps | null>(() => {
     if (!ctx.isCustomers) {
@@ -1318,7 +1497,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       return {
         id: customer.id,
         name: customer.name,
-        initials: (customer.name || '?').trim().slice(0, 1).toUpperCase(),
         projectLabel: `${projects.length}${projects.length === 1 ? ' project' : ' projects'}`,
         hours: fmtH(minutes),
         earn: fmtEUR(earn),
@@ -1326,21 +1504,15 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           width: '40px',
           height: '40px',
           borderRadius: '11px',
-          background: hexToRgba(ctx.acc, 0.12),
-          color: ctx.acc,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          fontWeight: 600,
+          background: customer.color,
           flexShrink: 0,
         },
-        onClick: () => openCustomer(customer),
+        onClick: () => navCustomerDetail(customer.id),
       };
     });
 
     return { custRows, custEmpty: custRows.length === 0 };
-  }, [ctx, openCustomer]);
+  }, [ctx, navCustomerDetail]);
 
   const modalProps = useMemo<ModalProps | null>(() => {
     const modal = ctx.S.modal;
@@ -1349,34 +1521,13 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }
 
     const isEntryModal = modal.type === 'entry';
-    const isProjectModal = modal.type === 'project';
     const isCustomerModal = modal.type === 'customer';
     const canDelete = !modal.isNew;
 
     const modalTitle = modal.type === 'entry'
       ? (modal.isNew ? 'Log hours' : 'Edit entry')
-      : modal.type === 'project'
-        ? (modal.isNew ? 'New project' : 'Edit project')
-        : (modal.isNew ? 'New customer' : 'Edit customer');
+      : (modal.isNew ? 'New customer' : 'Edit customer');
     const saveLabel = modal.isNew ? 'Add' : 'Save';
-
-    const palette = ['#2563eb', '#0d9488', '#7c3aed', '#d97706', '#db2777', '#65a30d', '#0891b2', '#dc2626'];
-    const colorSwatches = isProjectModal
-      ? palette.map((color) => ({
-          color,
-          style: {
-            width: '30px',
-            height: '30px',
-            borderRadius: '9px',
-            background: color,
-            cursor: 'pointer',
-            padding: 0,
-            border: (modal.form as ProjectForm).color === color ? '2px solid #fff' : '2px solid transparent',
-            boxShadow: (modal.form as ProjectForm).color === color ? `0 0 0 2px ${color}` : 'none',
-          },
-          onClick: () => updateForm('color', color),
-        }))
-      : [];
 
     const inputStyle: CSSProperties = {
       width: '100%',
@@ -1393,7 +1544,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       modalTitle,
       saveLabel,
       isEntryModal,
-      isProjectModal,
       isCustomerModal,
       canDelete,
       form: modal.form,
@@ -1401,8 +1551,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         id: project.id,
         name: `${project.name}  ·  ${ctx.custById[project.customerId]?.name || '—'}`,
       })),
-      custOpts: ctx.S.customers.map((customer) => ({ id: customer.id, name: customer.name })),
-      colorSwatches,
       inputStyle,
       textareaStyle: { ...inputStyle, resize: 'vertical', lineHeight: 1.4 },
       labelStyle: { display: 'block', fontSize: '12px', fontWeight: 500, color: '#626873', marginBottom: '6px' },
@@ -1423,14 +1571,185 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onFormEnd: (event: ChangeEvent<HTMLInputElement>) => updateForm('end', event.target.value),
       onFormComment: (event: ChangeEvent<HTMLTextAreaElement>) => updateForm('comment', event.target.value),
       onFormName: (event: ChangeEvent<HTMLInputElement>) => updateForm('name', event.target.value),
-      onFormCustomer: (event: ChangeEvent<HTMLSelectElement>) => updateForm('customerId', event.target.value),
-      onFormRate: (event: ChangeEvent<HTMLInputElement>) => updateForm('dayRate', event.target.value),
       onSave: saveModal,
       onCancel: closeModal,
       onDelete: deleteModal,
       stopOverlay: (event: MouseEvent) => event.stopPropagation(),
     };
   }, [closeModal, ctx, deleteModal, saveModal, updateForm]);
+
+  const customerDetailProps = useMemo<CustomerDetailViewProps | null>(() => {
+    if (!ctx.isCustomerDetail || !ctx.S.selectedCustomerId) {
+      return null;
+    }
+
+    const customerId = ctx.S.selectedCustomerId;
+    const customer = ctx.custById[customerId];
+    const projects = ctx.S.projects.filter((project) => project.customerId === customerId);
+    const projectIds = projects.map((project) => project.id);
+    const entries = ctx.S.entries.filter((entry) => projectIds.includes(entry.projectId));
+    const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+
+    const projectRows: CustomerDetailProjectRowVM[] = projects.map((project) => {
+      const projectEntries = ctx.S.entries.filter((entry) => entry.projectId === project.id);
+      const projectMinutes = projectEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+      const projectEarn = projectEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+      return {
+        id: project.id,
+        name: project.name,
+        currentRate: fmtEUR(currentRatePeriod(project.rates)?.amount ?? 0),
+        hours: fmtH(projectMinutes),
+        earn: fmtEUR(projectEarn),
+        dotStyle: { width: '12px', height: '12px', borderRadius: '4px', background: customer?.color || '#9ca3af', flexShrink: 0 },
+        onClick: () => openProjectDetail(project, { page: 'customerDetail', customerId }),
+      };
+    });
+
+    const setCustomerColor = (color: string) => {
+      setState((current) => ({
+        ...current,
+        customers: current.customers.map((item) => (item.id === customerId ? { ...item, color } : item)),
+      }));
+    };
+
+    const colorSwatches: ColorSwatchVM[] = PALETTE.map((color) => ({
+      color,
+      style: {
+        width: '30px',
+        height: '30px',
+        borderRadius: '9px',
+        background: color,
+        cursor: 'pointer',
+        padding: 0,
+        border: customer?.color === color ? '2px solid #fff' : '2px solid transparent',
+        boxShadow: customer?.color === color ? `0 0 0 2px ${color}` : 'none',
+      },
+      onClick: () => setCustomerColor(color),
+    }));
+
+    return {
+      customerName: customer?.name || '',
+      onNameChange: (event: ChangeEvent<HTMLInputElement>) => {
+        const name = event.target.value;
+        setState((current) => ({
+          ...current,
+          customers: current.customers.map((item) => (item.id === customerId ? { ...item, name } : item)),
+        }));
+      },
+      hours: fmtH(minutes),
+      earn: fmtEUR(earn),
+      projectRows,
+      projEmpty: projectRows.length === 0,
+      canDelete: true,
+      color: customer?.color || '#9ca3af',
+      colorSwatches,
+      onCustomColorChange: (event: ChangeEvent<HTMLInputElement>) => setCustomerColor(event.target.value),
+      inputStyle: {
+        width: '100%',
+        padding: '10px 12px',
+        border: '1px solid #d7dadf',
+        borderRadius: '9px',
+        fontSize: '14px',
+        color: '#1a1c20',
+        background: '#fff',
+        outline: 'none',
+      },
+      labelStyle: { display: 'block', fontSize: '12px', fontWeight: 500, color: '#626873', marginBottom: '6px' },
+      btnPrimaryLg: {
+        height: '38px',
+        padding: '0 20px',
+        border: 'none',
+        background: ctx.acc,
+        color: '#fff',
+        borderRadius: '9px',
+        cursor: 'pointer',
+        fontSize: '13.5px',
+        fontWeight: 600,
+      },
+      onBack: backToCustomers,
+      onNewProject: () => openProjectDetail(null, { page: 'customerDetail', customerId }, customerId),
+      onDeleteCustomer: () => {
+        if (window.confirm(`Delete ${customer?.name || 'this customer'}? This removes all of its projects and entries.`)) {
+          deleteCustomerById(customerId);
+        }
+      },
+    };
+  }, [backToCustomers, ctx, deleteCustomerById, openProjectDetail]);
+
+  const projectDetailProps = useMemo<ProjectDetailViewProps | null>(() => {
+    if (!ctx.isProjectDetail || !ctx.S.projectDraft) {
+      return null;
+    }
+
+    const draft = ctx.S.projectDraft;
+    const isNew = !draft.id;
+    const entries = draft.id ? ctx.S.entries.filter((entry) => entry.projectId === draft.id) : [];
+    const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const earn = entries.reduce((sum, entry) => sum + (((entry.end - entry.start) / 60) / ctx.hpd) * rateForDate(draft.rates, entry.date), 0);
+
+    const rateRows: RatePeriodRowVM[] = sortRates(draft.rates).map((rate) => ({
+      id: rate.id,
+      amount: String(rate.amount),
+      from: rate.from,
+      to: rate.to ?? '',
+      isCurrent: rate.to === null,
+      onAmountChange: (event: ChangeEvent<HTMLInputElement>) => updateRateField(rate.id, 'amount', event.target.value),
+      onFromChange: (event: ChangeEvent<HTMLInputElement>) => updateRateField(rate.id, 'from', event.target.value),
+      onToChange: (event: ChangeEvent<HTMLInputElement>) => updateRateField(rate.id, 'to', event.target.value),
+      onDelete: () => deleteRate(rate.id),
+    }));
+
+    const inputStyle: CSSProperties = {
+      width: '100%',
+      padding: '10px 12px',
+      border: '1px solid #d7dadf',
+      borderRadius: '9px',
+      fontSize: '14px',
+      color: '#1a1c20',
+      background: '#fff',
+      outline: 'none',
+    };
+
+    return {
+      isNew,
+      saveLabel: isNew ? 'Create project' : 'Save changes',
+      projectName: draft.name,
+      customerId: draft.customerId,
+      hours: fmtH(minutes),
+      earn: fmtEUR(earn),
+      canDelete: !isNew,
+      custOpts: ctx.S.customers.map((customer) => ({ id: customer.id, name: customer.name })),
+      rateRows,
+      newRateAmount: draft.newRateAmount,
+      newRateFrom: draft.newRateFrom,
+      inputStyle,
+      labelStyle: { display: 'block', fontSize: '12px', fontWeight: 500, color: '#626873', marginBottom: '6px' },
+      btnPrimaryLg: {
+        height: '38px',
+        padding: '0 20px',
+        border: 'none',
+        background: ctx.acc,
+        color: '#fff',
+        borderRadius: '9px',
+        cursor: 'pointer',
+        fontSize: '13.5px',
+        fontWeight: 600,
+      },
+      onNameChange: (event: ChangeEvent<HTMLInputElement>) => updateProjectDraft('name', event.target.value),
+      onCustomerChange: (event: ChangeEvent<HTMLSelectElement>) => updateProjectDraft('customerId', event.target.value),
+      onNewRateAmountChange: (event: ChangeEvent<HTMLInputElement>) => updateProjectDraft('newRateAmount', event.target.value),
+      onNewRateFromChange: (event: ChangeEvent<HTMLInputElement>) => updateProjectDraft('newRateFrom', event.target.value),
+      onAddRate: addRate,
+      onSave: saveProjectDraft,
+      onDelete: () => {
+        if (window.confirm(`Delete ${draft.name || 'this project'}? This removes all of its logged entries.`)) {
+          deleteProjectDraft();
+        }
+      },
+      onBack: backFromProjectDetail,
+    };
+  }, [addRate, backFromProjectDetail, ctx, deleteProjectDraft, deleteRate, saveProjectDraft, updateProjectDraft, updateRateField]);
 
   return {
     showWeek: ctx.isTrack && ctx.isWeek,
@@ -1439,6 +1758,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     showProjects: ctx.isProjects,
     showCustomers: ctx.isCustomers,
     showSettings: ctx.isSettings,
+    showCustomerDetail: ctx.isCustomerDetail,
+    showProjectDetail: ctx.isProjectDetail,
     modalOpen: Boolean(ctx.S.modal),
     sidebarProps,
     headerProps,
@@ -1448,6 +1769,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     projectsProps,
     customersProps,
     settingsProps,
+    customerDetailProps,
+    projectDetailProps,
     modalProps,
   };
 }
+

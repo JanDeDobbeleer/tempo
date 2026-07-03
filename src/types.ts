@@ -10,14 +10,24 @@ import type { CSSProperties, MouseEvent, ChangeEvent } from 'react';
 export interface Customer {
   id: string;
   name: string;
+  color: string;
+}
+
+// A time-bound rate for a project. Periods never overlap: `to: null` marks
+// the currently active ("open") period. Adding a new rate closes the
+// previously open period the day before the new period's `from` date.
+export interface RatePeriod {
+  id: string;
+  amount: number;
+  from: string;        // ISO yyyy-mm-dd, inclusive
+  to: string | null;    // ISO yyyy-mm-dd, inclusive, or null = open-ended/current
 }
 
 export interface Project {
   id: string;
   name: string;
   customerId: string;
-  dayRate: number;
-  color: string;
+  rates: RatePeriod[];
 }
 
 export interface Entry {
@@ -29,11 +39,11 @@ export interface Entry {
   comment: string;
 }
 
-export type Page = 'track' | 'projects' | 'customers' | 'settings';
+export type Page = 'track' | 'projects' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail';
 export type View = 'week' | 'day' | 'month';
 export type GistStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
-export type ModalType = 'entry' | 'project' | 'customer';
+export type ModalType = 'entry' | 'customer';
 
 export interface EntryForm {
   id: string | null;
@@ -48,16 +58,18 @@ export interface ProjectForm {
   id: string | null;
   name: string;
   customerId: string;
-  dayRate: string;
-  color: string;
+  rates: RatePeriod[];
+  newRateAmount: string;
+  newRateFrom: string;
 }
 
 export interface CustomerForm {
   id: string | null;
   name: string;
+  color: string;
 }
 
-export type ModalForm = EntryForm | ProjectForm | CustomerForm;
+export type ModalForm = EntryForm | CustomerForm;
 
 export interface ModalState {
   type: ModalType;
@@ -230,7 +242,6 @@ export interface ProjectsViewProps {
 export interface CustomerRowVM {
   id: string;
   name: string;
-  initials: string;
   projectLabel: string;
   hours: string;
   earn: string;
@@ -254,17 +265,26 @@ export interface ColorSwatchVM {
   onClick: () => void;
 }
 
+export interface RatePeriodRowVM {
+  id: string;
+  amount: string;
+  from: string;
+  to: string;           // '' means open/current
+  isCurrent: boolean;
+  onAmountChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onFromChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onToChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onDelete: () => void;
+}
+
 export interface ModalProps {
   modalTitle: string;
   saveLabel: string;
   isEntryModal: boolean;
-  isProjectModal: boolean;
   isCustomerModal: boolean;
   canDelete: boolean;
   form: ModalForm;
   projOpts: SelectOptionVM[];
-  custOpts: SelectOptionVM[];
-  colorSwatches: ColorSwatchVM[];
   inputStyle: CSSProperties;
   textareaStyle: CSSProperties;
   labelStyle: CSSProperties;
@@ -275,12 +295,68 @@ export interface ModalProps {
   onFormEnd: (e: ChangeEvent<HTMLInputElement>) => void;
   onFormComment: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   onFormName: (e: ChangeEvent<HTMLInputElement>) => void;
-  onFormCustomer: (e: ChangeEvent<HTMLSelectElement>) => void;
-  onFormRate: (e: ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
   onCancel: () => void;
   onDelete: () => void;
   stopOverlay: (e: MouseEvent) => void;
+}
+
+// ─── customer detail page (drill down from Customers list) ──────────────
+
+export interface CustomerDetailProjectRowVM {
+  id: string;
+  name: string;
+  currentRate: string;
+  hours: string;
+  earn: string;
+  dotStyle: CSSProperties;
+  onClick: () => void;
+}
+
+export interface CustomerDetailViewProps {
+  customerName: string;
+  onNameChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  hours: string;
+  earn: string;
+  projectRows: CustomerDetailProjectRowVM[];
+  projEmpty: boolean;
+  canDelete: boolean;
+  color: string;
+  colorSwatches: ColorSwatchVM[];
+  onCustomColorChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  inputStyle: CSSProperties;
+  labelStyle: CSSProperties;
+  btnPrimaryLg: CSSProperties;
+  onBack: () => void;
+  onNewProject: () => void;
+  onDeleteCustomer: () => void;
+}
+
+// ─── project detail page (drill down from Projects list or a customer) ──
+
+export interface ProjectDetailViewProps {
+  isNew: boolean;
+  saveLabel: string;
+  projectName: string;
+  customerId: string;
+  hours: string;
+  earn: string;
+  canDelete: boolean;
+  custOpts: SelectOptionVM[];
+  rateRows: RatePeriodRowVM[];
+  newRateAmount: string;
+  newRateFrom: string;
+  inputStyle: CSSProperties;
+  labelStyle: CSSProperties;
+  btnPrimaryLg: CSSProperties;
+  onNameChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onCustomerChange: (e: ChangeEvent<HTMLSelectElement>) => void;
+  onNewRateAmountChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onNewRateFromChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onAddRate: () => void;
+  onSave: () => void;
+  onDelete: () => void;
+  onBack: () => void;
 }
 
 // ─── settings page (GitHub sync, demo mode, danger zone) ────────────────
@@ -319,6 +395,8 @@ export interface TempoViewModel {
   showProjects: boolean;
   showCustomers: boolean;
   showSettings: boolean;
+  showCustomerDetail: boolean;
+  showProjectDetail: boolean;
   modalOpen: boolean;
   sidebarProps: SidebarProps;
   headerProps: AppHeaderProps;
@@ -328,5 +406,7 @@ export interface TempoViewModel {
   projectsProps: ProjectsViewProps | null;
   customersProps: CustomersViewProps | null;
   settingsProps: SettingsViewProps | null;
+  customerDetailProps: CustomerDetailViewProps | null;
+  projectDetailProps: ProjectDetailViewProps | null;
   modalProps: ModalProps | null;
 }

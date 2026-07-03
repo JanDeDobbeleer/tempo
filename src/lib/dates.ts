@@ -30,3 +30,30 @@ export function startOfWeek(d: Date): Date {
   next.setHours(12, 0, 0, 0);
   return next;
 }
+
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const LONG_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const LONG_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Always renders day before month (e.g. "5 Jun"), independent of browser locale.
+export function fmtShortDate(d: Date): string {
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
+}
+
+// Always renders day before month with a full year (e.g. "5 Jun 2026").
+export function fmtShortDateYear(d: Date): string {
+  return `${fmtShortDate(d)} ${d.getFullYear()}`;
+}
+
+// Always renders "June 2026" (month-year has no day-ordering ambiguity).
+export function fmtMonthYear(d: Date): string {
+  return `${LONG_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// Always renders "Monday, 5 June 2026" — day before month, independent of locale.
+export function fmtFullDate(d: Date): string {
+  return `${LONG_WEEKDAYS[d.getDay()]}, ${d.getDate()} ${LONG_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}

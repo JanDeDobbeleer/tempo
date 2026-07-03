@@ -27,7 +27,7 @@ const CustomersView: FC<CustomersViewProps> = ({ custRows, custEmpty }) => (
           onClick={customer.onClick}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={customer.avatarStyle}>{customer.initials}</div>
+            <div style={customer.avatarStyle} />
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
