@@ -12,10 +12,12 @@ function makeProps(overrides: Partial<SidebarProps> = {}): SidebarProps {
     navProjectsStyle: {},
     navCustomersStyle: {},
     navExportStyle: {},
+    navEarningsStyle: {},
     onNavTrack: vi.fn(),
     onNavProjects: vi.fn(),
     onNavCustomers: vi.fn(),
     onNavExport: vi.fn(),
+    onNavEarnings: vi.fn(),
     weekHours: '0h',
     weekDaysStr: '0',
     weekEarnStr: '€0',
@@ -47,6 +49,18 @@ describe('Sidebar', () => {
     await user.click(screen.getByRole('button', { name: 'Track' }))
 
     expect(onNavTrack).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  test('clicking Earnings calls onNavEarnings and onClose', async () => {
+    const user = userEvent.setup()
+    const onNavEarnings = vi.fn()
+    const onClose = vi.fn()
+
+    render(<Sidebar {...makeProps({ onNavEarnings, onClose })} />)
+    await user.click(screen.getByRole('button', { name: 'Earnings' }))
+
+    expect(onNavEarnings).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

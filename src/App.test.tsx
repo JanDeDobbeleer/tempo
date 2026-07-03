@@ -54,6 +54,14 @@ vi.mock('./components/SettingsView', () => ({
   default: () => <div data-testid="settings-view" />,
 }))
 
+vi.mock('./components/ExportView', () => ({
+  default: () => <div data-testid="export-view" />,
+}))
+
+vi.mock('./components/EarningsView', () => ({
+  default: () => <div data-testid="earnings-view" />,
+}))
+
 vi.mock('./components/Modal', () => ({
   default: () => <div data-testid="modal" />,
 }))
@@ -80,6 +88,7 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
     showCustomerDetail: false,
     showProjectDetail: false,
     showExport: false,
+    showEarnings: false,
     modalOpen: false,
     sidebarProps: {
       logoStyle: {},
@@ -87,10 +96,12 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       navProjectsStyle: {},
       navCustomersStyle: {},
       navExportStyle: {},
+      navEarningsStyle: {},
       onNavTrack: vi.fn(),
       onNavProjects: vi.fn(),
       onNavCustomers: vi.fn(),
       onNavExport: vi.fn(),
+      onNavEarnings: vi.fn(),
       weekHours: '0h',
       weekDaysStr: '0',
       weekEarnStr: '€0',
@@ -128,6 +139,7 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
     customerDetailProps: null,
     projectDetailProps: null,
     exportProps: null,
+    earningsProps: null,
     modalProps: null,
     ...overrides,
   }

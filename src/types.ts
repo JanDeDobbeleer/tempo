@@ -50,7 +50,7 @@ export interface Entry {
   attachments: AttachmentRef[];
 }
 
-export type Page = 'track' | 'projects' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail' | 'export';
+export type Page = 'track' | 'projects' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail' | 'export' | 'earnings';
 export type View = 'week' | 'day' | 'month';
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'conflict';
 
@@ -117,10 +117,12 @@ export interface SidebarProps {
   navProjectsStyle: CSSProperties;
   navCustomersStyle: CSSProperties;
   navExportStyle: CSSProperties;
+  navEarningsStyle: CSSProperties;
   onNavTrack: () => void;
   onNavProjects: () => void;
   onNavCustomers: () => void;
   onNavExport: () => void;
+  onNavEarnings: () => void;
   periodLabel: string;
   weekHours: string;
   weekDaysStr: string;
@@ -362,6 +364,7 @@ export interface CustomerDetailViewProps {
   onNewProject: () => void;
   onDeleteCustomer: () => void;
   onExport: () => void;
+  onViewEarnings: () => void;
 }
 
 // ─── project detail page (drill down from Projects list or a customer) ──
@@ -390,6 +393,7 @@ export interface ProjectDetailViewProps {
   onDelete: () => void;
   onBack: () => void;
   onExport: () => void;
+  onViewEarnings: () => void;
 }
 
 // ─── timesheet export page (PDF + attachments zip for a customer or project) ──
@@ -402,6 +406,34 @@ export interface ExportViewProps {
   entries: Entry[];
   hoursPerDay: number;
   initialScope: ExportScope | null;
+  onBack: () => void;
+}
+
+// ─── earnings analytics page (totals + breakdown by customer/project) ──
+
+// Seeds the page-local filter when deep-linking in from a customer/project
+// detail page's "View earnings" button.
+export interface EarningsFilterSeed {
+  customerId: string | null;
+  projectId: string | null;
+}
+
+export interface EarningsRowVM {
+  id: string;
+  name: string;
+  dotStyle: CSSProperties;
+  hours: string;
+  days: string;
+  earn: string;
+  share: string; // e.g. "42%"
+}
+
+export interface EarningsViewProps {
+  customers: Customer[];
+  projects: Project[];
+  entries: Entry[];
+  hoursPerDay: number;
+  initialFilter: EarningsFilterSeed | null;
   onBack: () => void;
 }
 
@@ -439,6 +471,7 @@ export interface TempoViewModel {
   showCustomerDetail: boolean;
   showProjectDetail: boolean;
   showExport: boolean;
+  showEarnings: boolean;
   modalOpen: boolean;
   sidebarProps: SidebarProps;
   headerProps: AppHeaderProps;
@@ -451,5 +484,6 @@ export interface TempoViewModel {
   customerDetailProps: CustomerDetailViewProps | null;
   projectDetailProps: ProjectDetailViewProps | null;
   exportProps: ExportViewProps | null;
+  earningsProps: EarningsViewProps | null;
   modalProps: ModalProps | null;
 }

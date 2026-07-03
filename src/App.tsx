@@ -18,6 +18,7 @@ import Fab from './components/Fab';
 // Loaded on demand: pulls in pdf-lib/jszip, which are only needed once the
 // user actually opens the export page.
 const ExportView = lazy(() => import('./components/ExportView'));
+const EarningsView = lazy(() => import('./components/EarningsView'));
 
 // Mirrors the DC root's editable-settings defaults (see Tempo.dc.html's
 // data-props block: accentColor / hoursPerDay / showWeekend).
@@ -40,6 +41,7 @@ const App: FC = () => {
     showProjectDetail,
     showSettings,
     showExport,
+    showEarnings,
     modalOpen,
     sidebarProps,
     headerProps,
@@ -52,6 +54,7 @@ const App: FC = () => {
     projectDetailProps,
     settingsProps,
     exportProps,
+    earningsProps,
     modalProps,
   } = useTempoState(SETTINGS);
 
@@ -95,6 +98,11 @@ const App: FC = () => {
         {showExport && exportProps && (
           <Suspense fallback={<div style={{ padding: '26px', color: '#626873' }}>Loading export…</div>}>
             <ExportView {...exportProps} />
+          </Suspense>
+        )}
+        {showEarnings && earningsProps && (
+          <Suspense fallback={<div style={{ padding: '26px', color: '#626873' }}>Loading earnings…</div>}>
+            <EarningsView {...earningsProps} />
           </Suspense>
         )}
       </main>

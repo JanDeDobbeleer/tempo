@@ -81,3 +81,25 @@ export function defaultExportPeriod(today: Date): { from: string; to: string } {
   const reference = daysLeft < 3 ? today : addMonths(today, -1);
   return monthBounds(reference);
 }
+
+// Inclusive [from, to] ISO bounds for the calendar quarter (Jan-Mar,
+// Apr-Jun, Jul-Sep, Oct-Dec) containing `d`.
+export function quarterBounds(d: Date): { from: string; to: string } {
+  const year = d.getFullYear();
+  const quarterStartMonth = Math.floor(d.getMonth() / 3) * 3;
+  const quarterEndMonth = quarterStartMonth + 2;
+  return {
+    from: iso(new Date(year, quarterStartMonth, 1, 12)),
+    to: iso(new Date(year, quarterEndMonth, daysInMonth(year, quarterEndMonth), 12)),
+  };
+}
+
+// Inclusive [from, to] ISO bounds for the calendar year (Jan 1 - Dec 31)
+// containing `d`.
+export function yearBounds(d: Date): { from: string; to: string } {
+  const year = d.getFullYear();
+  return {
+    from: iso(new Date(year, 0, 1, 12)),
+    to: iso(new Date(year, 11, 31, 12)),
+  };
+}

@@ -26,6 +26,7 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
   onDelete,
   onBack,
   onExport,
+  onViewEarnings,
 }) => (
   <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
     <div style={{ maxWidth: '720px', margin: '0 auto' }}>
@@ -188,6 +189,23 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
                 }}
               >
                 Delete project
+              </button>
+              <button
+                type="button"
+                onClick={onViewEarnings}
+                style={{
+                  height: '34px',
+                  padding: '0 16px',
+                  border: '1px solid #d7dadf',
+                  background: '#fff',
+                  borderRadius: '9px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#3a3f48',
+                }}
+              >
+                View earnings
               </button>
               <button
                 type="button"

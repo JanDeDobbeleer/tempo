@@ -15,6 +15,8 @@ import type {
   DayListRowVM,
   DayViewProps,
   DragState,
+  EarningsFilterSeed,
+  EarningsViewProps,
   Entry,
   EntryBlockVM,
   EntryForm,
@@ -74,6 +76,7 @@ type TempoState = PersistedData & {
   projectDraft: ProjectForm | null;
   projectOrigin: ProjectOrigin | null;
   exportScope: ExportScope | null;
+  earningsFilter: EarningsFilterSeed | null;
 };
 
 type ProjectOrigin = { page: 'projects' } | { page: 'customerDetail'; customerId: string };
@@ -97,7 +100,8 @@ type RenderCtx = {
   isCustomerDetail: boolean;
   isProjectDetail: boolean;
   isExport: boolean;
-  navSection: 'track' | 'projects' | 'customers' | 'settings' | 'export';
+  isEarnings: boolean;
+  navSection: 'track' | 'projects' | 'customers' | 'settings' | 'export' | 'earnings';
   isWeek: boolean;
   isDay: boolean;
   isMonth: boolean;
@@ -217,6 +221,7 @@ function createStateFromData(data: PersistedData, demoMode: boolean): TempoState
     projectDraft: null,
     projectOrigin: null,
     exportScope: null,
+    earningsFilter: null,
   };
 }
 
@@ -903,6 +908,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           projectDraft: null,
           projectOrigin: null,
           exportScope: null,
+          earningsFilter: null,
         };
       }
 
@@ -922,6 +928,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         projectDraft: null,
         projectOrigin: null,
         exportScope: null,
+        earningsFilter: null,
       };
     });
   }, []);
@@ -958,11 +965,16 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       projectDraft: null,
       projectOrigin: null,
       exportScope: null,
+      earningsFilter: null,
     }));
   }, []);
 
   const openExport = useCallback((scope: ExportScope | null) => {
     setState((current) => ({ ...current, page: 'export', exportScope: scope }));
+  }, []);
+
+  const openEarnings = useCallback((seed: EarningsFilterSeed | null) => {
+    setState((current) => ({ ...current, page: 'earnings', earningsFilter: seed }));
   }, []);
 
   const setView = useCallback((view: View) => {
@@ -1127,7 +1139,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     ? 'customers'
     : isProjectDetail
       ? (state.projectOrigin?.page === 'customerDetail' ? 'customers' : 'projects')
-      : (state.page === 'projects' || state.page === 'customers' || state.page === 'settings' || state.page === 'export' ? state.page : 'track');
+      : (state.page === 'projects' || state.page === 'customers' || state.page === 'settings' || state.page === 'export' || state.page === 'earnings' ? state.page : 'track');
 
   const ctx: RenderCtx = {
     S: state,
@@ -1146,6 +1158,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     isCustomerDetail,
     isProjectDetail,
     isExport: state.page === 'export',
+    isEarnings: state.page === 'earnings',
     navSection,
     isWeek: state.view === 'week',
     isDay: state.view === 'day',
@@ -1199,10 +1212,12 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       navProjectsStyle: navStyle(ctx.navSection === 'projects', ctx.acc),
       navCustomersStyle: navStyle(ctx.navSection === 'customers', ctx.acc),
       navExportStyle: navStyle(ctx.navSection === 'export', ctx.acc),
+      navEarningsStyle: navStyle(ctx.navSection === 'earnings', ctx.acc),
       onNavTrack: () => setPage('track'),
       onNavProjects: () => setPage('projects'),
       onNavCustomers: () => setPage('customers'),
       onNavExport: () => openExport(null),
+      onNavEarnings: () => openEarnings(null),
       periodLabel,
       weekHours: fmtH(periodMinutes),
       weekDaysStr: (periodMinutes / 60 / ctx.hpd).toFixed(1),
@@ -1211,7 +1226,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       syncLabel,
       onOpenSettings: openSettings,
     };
-  }, [ctx, openExport, openSettings, setPage]);
+  }, [ctx, openEarnings, openExport, openSettings, setPage]);
 
   const headerProps = useMemo<AppHeaderProps>(() => {
     const weekStart = startOfWeek(ctx.ref);
@@ -1308,6 +1323,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     } else if (ctx.isExport) {
       headerTitle = 'Export timesheet';
       headerSubtitle = 'PDF + attachments for a customer or project';
+    } else if (ctx.isEarnings) {
+      headerTitle = 'Earnings';
+      headerSubtitle = 'Totals and breakdown by customer or project';
     }
 
     return {
@@ -1801,8 +1819,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         }
       },
       onExport: () => openExport({ type: 'customer', id: customerId }),
+      onViewEarnings: () => openEarnings({ customerId, projectId: null }),
     };
-  }, [backToCustomers, ctx, deleteCustomerById, openExport, openProjectDetail]);
+  }, [backToCustomers, ctx, deleteCustomerById, openEarnings, openExport, openProjectDetail]);
 
   const projectDetailProps = useMemo<ProjectDetailViewProps | null>(() => {
     if (!ctx.isProjectDetail || !ctx.S.projectDraft) {
@@ -1881,8 +1900,13 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           openExport({ type: 'project', id: draft.id });
         }
       },
+      onViewEarnings: () => {
+        if (draft.id) {
+          openEarnings({ customerId: draft.customerId, projectId: draft.id });
+        }
+      },
     };
-  }, [addRate, backFromProjectDetail, ctx, deleteProjectDraft, deleteRate, openExport, saveProjectDraft, updateProjectDraft, updateRateField]);
+  }, [addRate, backFromProjectDetail, ctx, deleteProjectDraft, deleteRate, openEarnings, openExport, saveProjectDraft, updateProjectDraft, updateRateField]);
 
   const exportProps = useMemo<ExportViewProps | null>(() => {
     if (!ctx.isExport) {
@@ -1899,6 +1923,21 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     };
   }, [ctx, setPage]);
 
+  const earningsProps = useMemo<EarningsViewProps | null>(() => {
+    if (!ctx.isEarnings) {
+      return null;
+    }
+
+    return {
+      customers: ctx.S.customers,
+      projects: ctx.S.projects,
+      entries: ctx.S.entries,
+      hoursPerDay: ctx.hpd,
+      initialFilter: ctx.S.earningsFilter,
+      onBack: () => setPage('track'),
+    };
+  }, [ctx, setPage]);
+
   return {
     showWeek: ctx.isTrack && ctx.isWeek,
     showDay: ctx.isTrack && ctx.isDay,
@@ -1909,6 +1948,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     showCustomerDetail: ctx.isCustomerDetail,
     showProjectDetail: ctx.isProjectDetail,
     showExport: ctx.isExport,
+    showEarnings: ctx.isEarnings,
     modalOpen: Boolean(ctx.S.modal),
     sidebarProps,
     headerProps,
@@ -1921,6 +1961,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     customerDetailProps,
     projectDetailProps,
     exportProps,
+    earningsProps,
     modalProps,
   };
 }
