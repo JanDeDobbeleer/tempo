@@ -29,6 +29,10 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
   onBack,
   onExport,
   onViewEarnings,
+  budget,
+  budgetSpentLabel,
+  budgetPct,
+  onBudgetChange,
 }) => (
   <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
     <div style={{ maxWidth: '720px', margin: '0 auto' }}>
@@ -78,10 +82,23 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
                 ))}
               </select>
             </div>
+
+            <div style={{ flex: 1, minWidth: '140px' }}>
+              <label style={labelStyle}>Budget cap (€)</label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                style={inputStyle}
+                placeholder="optional"
+                value={budget}
+                onChange={onBudgetChange}
+              />
+            </div>
           </div>
 
           {!isNew && (
-            <div style={{ display: 'flex', gap: '24px', paddingTop: '4px' }}>
+            <div style={{ display: 'flex', gap: '24px', paddingTop: '4px', flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Logged
@@ -94,6 +111,27 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
                 </div>
                 <div style={{ fontSize: '16px', fontWeight: 600, marginTop: '3px' }}>{earn}</div>
               </div>
+              {budgetPct !== null && (
+                <div>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Budget
+                  </div>
+                  <div style={{ display: 'inline-block' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 600, marginTop: '3px', color: budgetPct >= 100 ? '#dc2626' : '#1a1c20', fontFamily: "'Geist Mono',monospace" }}>
+                      {budgetSpentLabel}
+                    </div>
+                    <div style={{ marginTop: '6px', height: '4px', borderRadius: '999px', background: '#e9ebef', overflow: 'hidden', width: '100%' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min(100, budgetPct)}%`,
+                        borderRadius: '999px',
+                        background: budgetPct >= 100 ? '#dc2626' : '#16a34a',
+                        transition: 'width 0.3s ease',
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -28,6 +28,7 @@ export interface Project {
   name: string;
   customerId: string;
   rates: RatePeriod[];
+  budget?: number | null;  // optional budget cap in €; undefined/null/0 = no cap
 }
 
 export interface Service {
@@ -92,6 +93,7 @@ export interface ProjectForm {
   rates: RatePeriod[];
   newRateAmount: string;
   newRateFrom: string;
+  budget: string;  // raw text input for budget cap ('' or '5000'); empty = no cap
 }
 
 export interface ServiceForm {
@@ -294,6 +296,9 @@ export interface ProjectRowVM {
   earn: string;
   dotStyle: CSSProperties;
   onClick: () => void;
+  budgetCap: string | null;    // e.g. "/ €5,000"; null if no budget set
+  budgetPct: number | null;    // 0–100+ percentage of budget spent; null if no budget
+  budgetReached: boolean;
 }
 
 export interface ProjectsViewProps {
@@ -402,6 +407,8 @@ export interface ModalProps {
   attachmentUploading: boolean;
   attachmentError: string;
   onAddAttachments: (e: ChangeEvent<HTMLInputElement>) => void;
+  budgetWarning: string;          // non-empty when selected project's budget is already spent or would be exceeded
+  budgetRemainingLabel: string;   // e.g. "€1,600 remaining · up to 2.5h at current rate"; empty if no budget/remaining
 }
 
 // ─── customer detail page (drill down from Customers list) ──────────────
@@ -466,6 +473,11 @@ export interface ProjectDetailViewProps {
   onBack: () => void;
   onExport: () => void;
   onViewEarnings: () => void;
+  // Budget cap (optional)
+  budget: string;              // text input value for budget cap; '' = no cap
+  budgetSpentLabel: string;    // e.g. "€2,400 of €5,000 spent"; '' if no budget
+  budgetPct: number | null;    // null if no budget
+  onBudgetChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
 export interface ServiceDetailViewProps {

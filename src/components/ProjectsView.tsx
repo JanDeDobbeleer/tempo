@@ -95,12 +95,29 @@ const ProjectsView: FC<ProjectsViewProps> = ({ projRows, projEmpty }) => (
             <div
               style={{
                 textAlign: 'right',
-                fontSize: '14px',
-                fontWeight: 600,
                 fontFamily: "'Geist Mono',monospace",
               }}
             >
-              {row.earn}
+              <div style={{ display: 'inline-block' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>
+                  {row.earn}
+                  {row.budgetCap && (
+                    <span style={{ fontWeight: 400, color: row.budgetReached ? '#dc2626' : '#9ca3af', fontSize: '12px' }}>
+                      {' '}{row.budgetCap}
+                    </span>
+                  )}
+                </div>
+                {row.budgetPct !== null && (
+                  <div style={{ marginTop: '5px', height: '3px', borderRadius: '999px', background: '#e9ebef', overflow: 'hidden', width: '100%' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${Math.min(100, row.budgetPct)}%`,
+                      borderRadius: '999px',
+                      background: row.budgetReached ? '#dc2626' : '#16a34a',
+                    }} />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ))}

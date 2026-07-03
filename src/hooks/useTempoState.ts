@@ -331,6 +331,7 @@ function createInitialState(): TempoState {
 export function useTempoState(settings: TempoSettings): TempoViewModel {
   const [state, setState] = useState<TempoState>(createInitialState);
   const stateRef = useRef(state);
+  const settingsRef = useRef(settings);
   const skipNextPushRef = useRef(false);
   // The Track calendar's displayed month. `null` means "the month containing
   // today"; its own prev/next month/year controls move it independently.
@@ -346,6 +347,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   const openEntry = useCallback((entry: EntryDraft, isNew: boolean) => {
     setState((current) => ({
@@ -398,6 +403,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           rates: project.rates,
           newRateAmount: String(currentRatePeriod(project.rates)?.amount ?? ''),
           newRateFrom: iso(new Date()),
+          budget: String(project.budget ?? ''),
         }
       : {
           id: null,
@@ -406,6 +412,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           rates: [{ id: uid(), amount: 600, from: iso(new Date()), to: null }],
           newRateAmount: '600',
           newRateFrom: iso(new Date()),
+          budget: '',
         }
   ), []);
 
@@ -522,7 +529,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     });
   }, []);
 
-  const updateProjectDraft = useCallback((key: 'name' | 'customerId' | 'newRateAmount' | 'newRateFrom', value: string) => {
+  const updateProjectDraft = useCallback((key: 'name' | 'customerId' | 'newRateAmount' | 'newRateFrom' | 'budget', value: string) => {
     setState((current) => {
       if (!current.projectDraft) {
         return current;
@@ -606,6 +613,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }
 
     const rates = sortRates(draft.rates);
+    const parsedBudget = Number.parseFloat(draft.budget);
+    const budget = Number.isFinite(parsedBudget) && parsedBudget > 0 ? parsedBudget : null;
     setState((current) => {
       const id = draft.id || uid();
       const savedProject: Project = {
@@ -613,6 +622,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         name: draft.name.trim(),
         customerId: draft.customerId,
         rates,
+        budget,
       };
 
       return {
@@ -915,8 +925,48 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         return;
       }
 
-      const buildEntry = (id: string, date: string, attachments: EntryForm['attachments']): Entry => ({
-        id,
+      // Budget cap enforcement: block new project entries that would meet or exceed the remaining budget.
+      if (modal.isNew && form.kind === 'project' && form.projectId) {
+        const hpdNow = getHoursPerDay(settingsRef.current);
+        const project = stateRef.current.projects.find((p) => p.id === form.projectId);
+        if (project && (project.budget ?? 0) > 0) {
+          const budget = project.budget!;
+          const spent = stateRef.current.entries
+            .filter((e) => e.kind === 'project' && e.projectId === form.projectId)
+            .reduce((sum, e) => sum + ((e.minutes / 60) / hpdNow) * rateForDate(project.rates, e.date), 0);
+          const remaining = budget - spent;
+
+          if (remaining <= 0) {
+            window.alert(`Budget cap of ${fmtEUR(budget)} reached for "${project.name}". No new entries can be added to this project.`);
+            return;
+          }
+
+          // Compute total earnings this submission would add (handles single and repeat).
+          let totalNewEarn = 0;
+          if (form.repeat) {
+            const startDate = parseISO(form.date);
+            const endDate = parseISO(form.endDate);
+            for (let cursor = new Date(startDate); cursor <= endDate; cursor = addDays(cursor, 1)) {
+              if (form.skipWeekends && isWeekend(cursor)) continue;
+              totalNewEarn += (minutes / 60 / hpdNow) * rateForDate(project.rates, iso(cursor));
+            }
+          } else {
+            totalNewEarn = (minutes / 60 / hpdNow) * rateForDate(project.rates, form.date);
+          }
+
+          if (totalNewEarn > remaining) {
+            const rate = rateForDate(project.rates, form.date);
+            const maxHours = rate > 0 ? (remaining / rate) * hpdNow : 0;
+            window.alert(
+              `This entry (${fmtEUR(Math.round(totalNewEarn))}) would exceed the remaining budget of ${fmtEUR(Math.round(remaining))} for "${project.name}". ` +
+              `Max you can book: ${fmtH(Math.round(maxHours * 60))}.`,
+            );
+            return;
+          }
+        }
+      }
+
+      const buildEntry = (id: string, date: string, attachments: EntryForm['attachments']): Entry => ({        id,
         kind: form.kind,
         projectId: form.kind === 'project' ? form.projectId : null,
         serviceId: form.kind === 'service' ? form.serviceId : null,
@@ -1699,6 +1749,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       const entries = ctx.S.entries.filter((entry) => entry.kind === 'project' && entry.projectId === project.id);
       const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
       const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+      const budgetAmount = project.budget ?? 0;
+      const budgetCap = budgetAmount > 0 ? `/ ${fmtEUR(budgetAmount)}` : null;
+      const budgetPct = budgetAmount > 0 ? Math.round((earn / budgetAmount) * 100) : null;
+      const budgetReached = budgetAmount > 0 && earn >= budgetAmount;
       return {
         id: project.id,
         name: project.name,
@@ -1708,6 +1762,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         earn: fmtEUR(earn),
         dotStyle: { width: '12px', height: '12px', borderRadius: '4px', background: colorForProject(project, ctx.custById), flexShrink: 0 },
         onClick: () => openProjectDetail(project, { page: 'projects' }),
+        budgetCap,
+        budgetPct,
+        budgetReached,
       };
     });
 
@@ -1835,10 +1892,18 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         id: customer.id,
         name: customer.name,
       })),
-      projOpts: ctx.S.projects.map((project) => ({
-        id: project.id,
-        name: `${project.name}  ·  ${ctx.custById[project.customerId]?.name || '—'}`,
-      })),
+      projOpts: ctx.S.projects.map((project) => {
+        let name = `${project.name}  ·  ${ctx.custById[project.customerId]?.name || '—'}`;
+        if (modal.isNew && isEntryModal && (project.budget ?? 0) > 0) {
+          const spent = ctx.S.entries
+            .filter((e) => e.kind === 'project' && e.projectId === project.id)
+            .reduce((sum, e) => sum + ctx.entryEarn(e), 0);
+          if (spent >= project.budget!) {
+            name += '  ·  ⚠ Budget reached';
+          }
+        }
+        return { id: project.id, name };
+      }),
       inputStyle,
       textareaStyle: { ...inputStyle, resize: 'vertical', lineHeight: 1.4 },
       labelStyle: { display: 'block', fontSize: '12px', fontWeight: 500, color: '#626873', marginBottom: '6px' },
@@ -1891,6 +1956,41 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       attachmentUploading: ctx.S.attachmentUploading,
       attachmentError: ctx.S.attachmentError,
       onAddAttachments,
+      ...(() => {
+        const empty = { budgetWarning: '', budgetRemainingLabel: '' };
+        if (!isEntryModal || !modal.isNew || entryForm?.kind !== 'project' || !entryForm.projectId) return empty;
+        const project = ctx.S.projects.find((p) => p.id === entryForm.projectId);
+        if (!project || !(project.budget ?? 0)) return empty;
+        const budget = project.budget!;
+        const spent = ctx.S.entries
+          .filter((e) => e.kind === 'project' && e.projectId === entryForm.projectId)
+          .reduce((sum, e) => sum + ctx.entryEarn(e), 0);
+        const remaining = budget - spent;
+        const rate = rateForDate(project.rates, entryForm.date);
+        const maxHours = rate > 0 ? (remaining / rate) * ctx.hpd : 0;
+
+        if (remaining <= 0) {
+          return {
+            budgetWarning: `Budget cap of ${fmtEUR(budget)} reached. No new entries can be added to this project.`,
+            budgetRemainingLabel: '',
+          };
+        }
+
+        const budgetRemainingLabel = `${fmtEUR(Math.round(remaining))} remaining · up to ${fmtH(Math.round(maxHours * 60))} at current rate`;
+
+        const entryMinutes = hoursToMinutes(entryForm.hours);
+        if (Number.isFinite(entryMinutes) && entryMinutes > 0) {
+          const entryEarn = (entryMinutes / 60 / ctx.hpd) * rate;
+          if (entryEarn > remaining) {
+            return {
+              budgetWarning: `This entry (${fmtEUR(Math.round(entryEarn))}) would exceed the remaining budget. Max you can book: ${fmtH(Math.round(maxHours * 60))}.`,
+              budgetRemainingLabel,
+            };
+          }
+        }
+
+        return { budgetWarning: '', budgetRemainingLabel };
+      })(),
     };
   }, [closeModal, ctx, deleteModal, onAddAttachments, onDeleteAttachment, onDownloadAttachment, saveModal, updateForm]);
 
@@ -2008,6 +2108,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const entries = draft.id ? ctx.S.entries.filter((entry) => entry.kind === 'project' && entry.projectId === draft.id) : [];
     const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
     const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+    const budgetAmount = Number.parseFloat(draft.budget);
+    const hasBudget = !isNew && Number.isFinite(budgetAmount) && budgetAmount > 0;
+    const budgetPct = hasBudget ? Math.round((earn / budgetAmount) * 100) : null;
+    const budgetSpentLabel = hasBudget ? `${fmtEUR(earn)} of ${fmtEUR(budgetAmount)} spent` : '';
 
     const entryRows: EntryDetailRowVM[] = [...entries]
       .sort((a, b) => b.date.localeCompare(a.date))
@@ -2093,6 +2197,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           openEarnings({ customerId: draft.customerId, projectId: draft.id });
         }
       },
+      budget: draft.budget,
+      budgetSpentLabel,
+      budgetPct,
+      onBudgetChange: (event: ChangeEvent<HTMLInputElement>) => updateProjectDraft('budget', event.target.value),
     };
   }, [addRate, backFromProjectDetail, ctx, deleteProjectDraft, deleteRate, openEarnings, openEntry, openExport, saveProjectDraft, updateProjectDraft, updateRateField]);
 

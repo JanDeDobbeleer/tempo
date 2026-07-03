@@ -38,6 +38,8 @@ const Modal: FC<ModalProps> = ({
   attachmentUploading,
   attachmentError,
   onAddAttachments,
+  budgetWarning,
+  budgetRemainingLabel,
 }) => {
   // Safe casts: each isXModal flag guarantees which loose form shape is active.
   const entryForm = form as EntryForm;
@@ -141,6 +143,37 @@ const Modal: FC<ModalProps> = ({
                         </option>
                       ))}
                     </select>
+                    {budgetRemainingLabel && !budgetWarning && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '9px 12px',
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        color: '#15803d',
+                        lineHeight: 1.4,
+                      }}>
+                        {budgetRemainingLabel}
+                      </div>
+                    )}
+                    {budgetWarning && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '9px 12px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        color: '#dc2626',
+                        lineHeight: 1.4,
+                      }}>
+                        {budgetWarning}
+                        {budgetRemainingLabel && (
+                          <div style={{ marginTop: '4px', color: '#9ca3af' }}>{budgetRemainingLabel}</div>
+                        )}
+                      </div>
+                    )}
                   </>
                 ) : entryForm.kind === 'service' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -409,7 +442,12 @@ const Modal: FC<ModalProps> = ({
             >
               Cancel
             </button>
-            <button className="modal-save-btn" style={btnPrimaryLg} onClick={onSave}>
+            <button
+              className="modal-save-btn"
+              style={{ ...btnPrimaryLg, ...(budgetWarning ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }}
+              onClick={onSave}
+              disabled={!!budgetWarning}
+            >
               {saveLabel}
             </button>
           </div>
