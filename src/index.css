@@ -135,6 +135,16 @@ textarea {
   }
 }
 
+@keyframes sync-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.sync-spin {
+  animation: sync-spin 900ms linear infinite;
+  display: block;
+}
+
 .cal-prow {
   transition: border-color 120ms ease;
 }

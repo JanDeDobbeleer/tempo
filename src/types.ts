@@ -153,6 +153,7 @@ export interface SidebarProps {
   monthEarnStr: string;
   syncColor: string;
   syncLabel: string;
+  syncStatus: SyncStatus;
   onOpenSettings: () => void;
   isOpen?: boolean;
   onClose?: () => void;

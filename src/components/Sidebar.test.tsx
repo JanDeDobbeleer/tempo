@@ -26,6 +26,7 @@ function makeProps(overrides: Partial<SidebarProps> = {}): SidebarProps {
     periodLabel: 'This week',
     syncColor: '#9ca3af',
     syncLabel: 'Saved in browser',
+    syncStatus: 'idle',
     onOpenSettings: vi.fn(),
     ...overrides,
   }

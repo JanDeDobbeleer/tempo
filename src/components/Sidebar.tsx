@@ -1,6 +1,43 @@
 import type { FC } from 'react'
 import type { SidebarProps } from '../types'
 
+const SyncIcon: FC<{ status: SidebarProps['syncStatus'] }> = ({ status }) => {
+  if (status === 'syncing') {
+    return (
+      <svg className="sync-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 2v6h-6" />
+        <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+        <path d="M3 22v-6h6" />
+        <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+      </svg>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v4" />
+        <path d="M12 16h.01" />
+      </svg>
+    );
+  }
+
+  if (status === 'conflict') {
+    return (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+      <path d="M5 13l4 4L19 7"></path>
+    </svg>
+  );
+};
+
 const Sidebar: FC<SidebarProps> = ({
   logoStyle,
   navTrackStyle,
@@ -21,6 +58,7 @@ const Sidebar: FC<SidebarProps> = ({
   periodLabel,
   syncColor,
   syncLabel,
+  syncStatus,
   onOpenSettings,
   isOpen,
   onClose,
@@ -186,9 +224,7 @@ const Sidebar: FC<SidebarProps> = ({
         }}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: syncColor }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <path d="M5 13l4 4L19 7"></path>
-          </svg>
+          <SyncIcon status={syncStatus} />
           {syncLabel}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

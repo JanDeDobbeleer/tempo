@@ -1345,6 +1345,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       monthEarnStr: fmtEUR(periodEarn),
       syncColor,
       syncLabel,
+      syncStatus: ctx.S.syncStatus,
       onOpenSettings: openSettings,
     };
   }, [ctx, openEarnings, openExport, openSettings, setPage]);
