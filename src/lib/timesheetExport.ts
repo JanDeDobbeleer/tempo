@@ -157,11 +157,13 @@ export async function buildTimesheetPdf(options: TimesheetExportOptions): Promis
 
   const sorted = entries.slice().sort((a, b) => a.entry.date.localeCompare(b.entry.date));
   let totalMinutes = 0;
+  let totalAmount = 0;
 
   sorted.forEach(({ entry, project }) => {
     const minutes = entry.end - entry.start;
     const amount = ((minutes / 60) / hoursPerDay) * rateForDate(project.rates, entry.date);
     totalMinutes += minutes;
+    totalAmount += amount;
 
     const rowTop = y;
     page.drawText(fmtShortDateYear(parseISO(entry.date)), { x: columns[0].x + 4, y: rowTop, size: 10, font, color: INK });
@@ -189,14 +191,16 @@ export async function buildTimesheetPdf(options: TimesheetExportOptions): Promis
   page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 1, color: INK });
   y -= 22;
 
-  const totalHoursText = `Total hours: ${fmtH(totalMinutes)}`;
-  page.drawText(totalHoursText, { x: MARGIN, y, size: 11, font: bold, color: INK });
+  const totalDays = (totalMinutes / 60 / hoursPerDay).toFixed(1);
+  const totalsText = `Total hours: ${fmtH(totalMinutes)}   ·   Total days: ${totalDays}   ·   Total amount: ${fmtEUR(totalAmount)}`;
+  page.drawText(totalsText, { x: MARGIN, y, size: 11, font: bold, color: INK });
 
   const count = attachmentCount(entries);
   if (count > 0) {
     const attachmentsText = `Attachments: ${count} (see accompanying zip)`;
     const width = font.widthOfTextAtSize(attachmentsText, 10);
-    page.drawText(attachmentsText, { x: MARGIN + CONTENT_WIDTH - width, y, size: 10, font, color: GRAY });
+    page.drawText(attachmentsText, { x: MARGIN + CONTENT_WIDTH - width, y: y - 18, size: 10, font, color: GRAY });
+    y -= 18;
   }
   y -= 30;
 

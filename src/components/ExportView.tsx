@@ -217,6 +217,10 @@ const ExportView: FC<ExportViewProps> = ({ customers, projects, entries, hoursPe
               <div style={{ fontSize: '16px', fontWeight: 600, marginTop: '3px' }}>{fmtH(totalMinutes)}</div>
             </div>
             <div>
+              <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Days</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, marginTop: '3px' }}>{(totalMinutes / 60 / hoursPerDay).toFixed(1)}</div>
+            </div>
+            <div>
               <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount</div>
               <div style={{ fontSize: '16px', fontWeight: 600, marginTop: '3px' }}>{fmtEUR(totalAmount)}</div>
             </div>
