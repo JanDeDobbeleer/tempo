@@ -194,13 +194,13 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
                 type="button"
                 onClick={onViewEarnings}
                 style={{
-                  height: '34px',
-                  padding: '0 16px',
+                  height: '38px',
+                  padding: '0 20px',
                   border: '1px solid #d7dadf',
                   background: '#fff',
                   borderRadius: '9px',
                   cursor: 'pointer',
-                  fontSize: '13px',
+                  fontSize: '13.5px',
                   fontWeight: 600,
                   color: '#3a3f48',
                 }}
@@ -211,13 +211,13 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
                 type="button"
                 onClick={onExport}
                 style={{
-                  height: '34px',
-                  padding: '0 16px',
+                  height: '38px',
+                  padding: '0 20px',
                   border: '1px solid #d7dadf',
                   background: '#fff',
                   borderRadius: '9px',
                   cursor: 'pointer',
-                  fontSize: '13px',
+                  fontSize: '13.5px',
                   fontWeight: 600,
                   color: '#3a3f48',
                 }}
