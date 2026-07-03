@@ -128,7 +128,7 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       onNewService: vi.fn(),
       onNewCustomer: vi.fn(),
     },
-    trackProps: { days: [], weekSummary: { weekLabel: 'Week 27', hoursLabel: '0h', daysLabel: '0', earnLabel: '€0' }, monthHeatmap: { monthLabel: 'July 2026', weeks: [], dowLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], onPrevMonth: () => {}, onNextMonth: () => {}, onPrevYear: () => {}, onNextYear: () => {} }, accent: '#2563eb' },
+    trackProps: { matrix: { dayHeaders: [], rows: [], dayTotals: [], totalHoursLabel: '0h', totalEarnLabel: '€0', onAddEntry: () => {} }, weekSummary: { weekLabel: 'Week 27', hoursLabel: '0h', daysLabel: '0', earnLabel: '€0' }, monthHeatmap: { monthLabel: 'July 2026', weeks: [], dowLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], onPrevMonth: () => {}, onNextMonth: () => {}, onPrevYear: () => {}, onNextYear: () => {} }, accent: '#2563eb' },
     projectsProps: null,
     servicesProps: null,
     customersProps: null,

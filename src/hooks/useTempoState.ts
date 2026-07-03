@@ -12,7 +12,6 @@ import type {
   CustomerDetailViewProps,
   CustomerForm,
   CustomersViewProps,
-  DayListRowVM,
   EarningsFilterSeed,
   EarningsViewProps,
   Entry,
@@ -40,7 +39,8 @@ import type {
   TempoSettings,
   TempoViewModel,
   MonthHeatmapDayVM,
-  TrackDayVM,
+  MatrixCellVM,
+  MatrixRowVM,
   TrackViewProps,
 } from '../types';
 
@@ -55,23 +55,6 @@ function colorForProject(project: Project | undefined, custById: Record<string, 
 
 function colorForServiceEntry(entry: Entry, custById: Record<string, Customer>): string {
   return entry.customerId ? (custById[entry.customerId]?.color || '#9ca3af') : '#9ca3af';
-}
-
-function labelForEntry(
-  entry: Entry,
-  projById: Record<string, Project>,
-  serviceById: Record<string, Service>,
-  custById: Record<string, Customer>,
-): string {
-  if (entry.kind === 'service') {
-    const serviceName = serviceById[entry.serviceId ?? '']?.name || '—';
-    const customerName = custById[entry.customerId ?? '']?.name || '—';
-    return `${serviceName} — ${customerName}`;
-  }
-  if (entry.kind === 'customer') {
-    return custById[entry.customerId ?? '']?.name || '—';
-  }
-  return projById[entry.projectId ?? '']?.name || '—';
 }
 
 function colorForEntry(
@@ -351,6 +334,62 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   const openNewEntry = useCallback(() => {
     openNewEntryForDate(stateRef.current.refISO);
   }, [openNewEntryForDate]);
+
+  // Inline hour edits coming from the Track matrix. `existing` is the single
+  // entry currently in the (row context, day) cell, or null for an empty
+  // cell. Typing >0 hours updates/creates the entry, 0 (or clearing the
+  // value) deletes it — rows exist purely as a consequence of entries.
+  const commitMatrixCell = useCallback((
+    existing: Entry | null,
+    context: Pick<Entry, 'kind' | 'projectId' | 'serviceId' | 'customerId'>,
+    dateISO: string,
+    hours: string,
+  ) => {
+    const minutes = hoursToMinutes(hours);
+
+    if (existing) {
+      if (hours.trim() !== '' && !Number.isFinite(minutes)) {
+        return; // unparsable input — keep the entry untouched
+      }
+      if (!Number.isFinite(minutes) || minutes <= 0) {
+        existing.attachments.forEach((attachment) => {
+          void store.deleteAttachment(existing.id, attachment.id);
+        });
+        setState((current) => ({
+          ...current,
+          entries: current.entries.filter((entry) => entry.id !== existing.id),
+        }));
+        return;
+      }
+      setState((current) => ({
+        ...current,
+        entries: current.entries.map((entry) => (
+          entry.id === existing.id ? { ...entry, minutes } : entry
+        )),
+      }));
+      return;
+    }
+
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      return;
+    }
+    const newEntry: Entry = {
+      id: uid(),
+      kind: context.kind,
+      projectId: context.projectId,
+      serviceId: context.serviceId,
+      customerId: context.customerId,
+      amount: null,
+      date: dateISO,
+      minutes,
+      comment: '',
+      attachments: [],
+    };
+    setState((current) => ({
+      ...current,
+      entries: [...current.entries, newEntry],
+    }));
+  }, []);
 
   const draftFromProject = useCallback((project: Project | null, customers: Customer[], presetCustomerId?: string): ProjectForm => (
     project
@@ -1441,60 +1480,148 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const dayCount = ctx.showWeekend ? 7 : 5;
     const dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-    const days: TrackDayVM[] = [];
-    for (let index = 0; index < dayCount; index += 1) {
+    const dayHeaders = Array.from({ length: dayCount }, (_, index) => {
       const date = addDays(weekStart, index);
       const dayISO = iso(date);
-      const isToday = dayISO === ctx.todayISO;
-      const dayEntries = ctx.S.entries.filter((entry) => entry.date === dayISO);
-      const dayMinutes = dayEntries.reduce((sum, entry) => sum + entry.minutes, 0);
-
-      const entries: DayListRowVM[] = dayEntries.map((entry) => ({
-        id: entry.id,
-        projectName: labelForEntry(entry, ctx.projById, ctx.serviceById, ctx.custById),
-        comment: entry.comment,
-        hoursLabel: fmtH(entry.minutes),
-        earnLabel: fmtEUR(ctx.entryEarn(entry)),
-        dotStyle: {
-          width: '10px',
-          height: '10px',
-          borderRadius: '3px',
-          background: colorForEntry(entry, ctx.projById, ctx.custById),
-          flexShrink: 0,
-          marginTop: '4px',
-        },
-        onClick: () => openEntry(entry, false),
-      }));
-
-      days.push({
+      return {
         iso: dayISO,
-        dowLabel: dowLabels[index],
-        dayNum: date.getDate(),
-        isToday,
-        numStyle: isToday
-          ? {
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '26px',
-              height: '26px',
-              borderRadius: '50%',
-              background: ctx.acc,
-              color: '#fff',
-              fontSize: '14px',
-              fontWeight: 600,
-            }
-          : { fontSize: '15px', fontWeight: 600, color: '#1a1c20', lineHeight: '26px' },
-        totalHoursLabel: dayMinutes > 0 ? fmtH(dayMinutes) : '',
-        entries,
-        onAddEntry: () => openNewEntryForDate(dayISO),
-      });
-    }
+        label: `${dowLabels[index]} ${date.getDate()}`,
+        isToday: dayISO === ctx.todayISO,
+        isWeekend: index >= 5,
+      };
+    });
 
-    const weekISOs = new Set(days.map((day) => day.iso));
+    const weekISOs = new Set(dayHeaders.map((header) => header.iso));
     const weekEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
     const weekMinutes = weekEntries.reduce((sum, entry) => sum + entry.minutes, 0);
     const weekEarn = weekEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+
+    // Matrix rows are derived from the week's entries: one row per logged
+    // context (project, service+customer, or customer flat fee). Rows are
+    // never managed by hand — the "Add entry" modal introduces new ones, and
+    // a row vanishes once its last entry in the week is gone.
+    type RowSeed = {
+      key: string;
+      kind: Entry['kind'];
+      projectId: string | null;
+      serviceId: string | null;
+      customerId: string | null;
+      name: string;
+      subLabel: string;
+      dotColor: string;
+    };
+    const rowByKey = new Map<string, RowSeed>();
+    for (const entry of weekEntries) {
+      const key = entry.kind === 'project'
+        ? `project:${entry.projectId}`
+        : entry.kind === 'service'
+          ? `service:${entry.serviceId}:${entry.customerId}`
+          : `customer:${entry.customerId}`;
+      if (rowByKey.has(key)) {
+        continue;
+      }
+      const customerName = ctx.custById[entry.customerId ?? '']?.name || '—';
+      rowByKey.set(key, {
+        key,
+        kind: entry.kind,
+        projectId: entry.kind === 'project' ? entry.projectId : null,
+        serviceId: entry.kind === 'service' ? entry.serviceId : null,
+        customerId: entry.kind === 'project' ? null : entry.customerId,
+        name: entry.kind === 'project'
+          ? (ctx.projById[entry.projectId ?? '']?.name || '—')
+          : entry.kind === 'service'
+            ? (ctx.serviceById[entry.serviceId ?? '']?.name || '—')
+            : customerName,
+        subLabel: entry.kind === 'project'
+          ? (ctx.custById[ctx.projById[entry.projectId ?? '']?.customerId ?? '']?.name || '—')
+          : entry.kind === 'service'
+            ? customerName
+            : 'Flat fee',
+        dotColor: colorForEntry(entry, ctx.projById, ctx.custById),
+      });
+    }
+
+    const kindOrder: Record<Entry['kind'], number> = { project: 0, service: 1, customer: 2 };
+    const rowSeeds = [...rowByKey.values()].sort((a, b) => (
+      kindOrder[a.kind] - kindOrder[b.kind]
+      || a.name.localeCompare(b.name)
+      || a.subLabel.localeCompare(b.subLabel)
+    ));
+
+    const rows: MatrixRowVM[] = rowSeeds.map((seed) => {
+      const matchesRow = (entry: Entry): boolean => entry.kind === seed.kind && (
+        seed.kind === 'project'
+          ? entry.projectId === seed.projectId
+          : seed.kind === 'service'
+            ? entry.serviceId === seed.serviceId && entry.customerId === seed.customerId
+            : entry.customerId === seed.customerId
+      );
+      const rowEntries = weekEntries.filter(matchesRow);
+
+      const cells: MatrixCellVM[] = dayHeaders.map((header) => {
+        const cellEntries = rowEntries.filter((entry) => entry.date === header.iso);
+        const cellMinutes = cellEntries.reduce((sum, entry) => sum + entry.minutes, 0);
+        const single = cellEntries.length === 1 ? cellEntries[0] : null;
+        const context = {
+          kind: seed.kind,
+          projectId: seed.projectId,
+          serviceId: seed.serviceId,
+          customerId: seed.customerId,
+        };
+        // Customer flat-fee entries need an amount, so creating one goes
+        // through the modal; multi-entry cells are disambiguated there too.
+        const editable = cellEntries.length <= 1 && !(seed.kind === 'customer' && cellEntries.length === 0);
+        const onOpen = cellEntries.length > 0
+          ? () => openEntry(cellEntries[0], false)
+          : seed.kind === 'customer'
+            ? () => openEntry({
+                kind: 'customer',
+                projectId: null,
+                serviceId: null,
+                customerId: seed.customerId,
+                date: header.iso,
+                minutes: 60,
+                comment: '',
+              }, true)
+            : null;
+
+        return {
+          iso: header.iso,
+          hoursLabel: cellMinutes > 0 ? fmtH(cellMinutes) : '',
+          editValue: single ? minutesToHours(single.minutes) : '',
+          entryCount: cellEntries.length,
+          hasDetails: cellEntries.some((entry) => entry.comment !== '' || entry.attachments.length > 0),
+          isToday: header.isToday,
+          isWeekend: header.isWeekend,
+          editable,
+          title: cellEntries.length > 1
+            ? `${cellEntries.length} entries — click to open`
+            : (single?.comment || ''),
+          onCommit: (hours: string) => commitMatrixCell(single, context, header.iso, hours),
+          onOpen,
+        };
+      });
+
+      const rowMinutes = rowEntries.reduce((sum, entry) => sum + entry.minutes, 0);
+      const rowEarn = rowEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+
+      return {
+        key: seed.key,
+        name: seed.name,
+        subLabel: seed.subLabel,
+        dotColor: seed.dotColor,
+        cells,
+        totalHoursLabel: fmtH(rowMinutes),
+        totalEarnLabel: rowEarn > 0 ? fmtEUR(rowEarn) : '',
+      };
+    });
+
+    const dayTotals = dayHeaders.map((header) => {
+      const minutes = weekEntries
+        .filter((entry) => entry.date === header.iso)
+        .reduce((sum, entry) => sum + entry.minutes, 0);
+      return minutes > 0 ? fmtH(minutes) : '';
+    });
 
     // Read-only month heatmap. The displayed month defaults to the currently
     // active week (ctx.ref) but can be browsed independently via its own
@@ -1554,7 +1681,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }
 
     return {
-      days,
+      matrix: {
+        dayHeaders,
+        rows,
+        dayTotals,
+        totalHoursLabel: fmtH(weekMinutes),
+        totalEarnLabel: fmtEUR(weekEarn),
+        onAddEntry: () => openNewEntryForDate(weekISOs.has(ctx.todayISO) ? ctx.todayISO : iso(weekStart)),
+      },
       weekSummary: {
         weekLabel: `Week ${isoWeekNumber(weekStart)}`,
         hoursLabel: fmtH(weekMinutes),
@@ -1572,7 +1706,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       },
       accent: ctx.acc,
     };
-  }, [ctx, openEntry, openNewEntryForDate, setRefISO, onHeatmapPrevMonth, onHeatmapNextMonth, onHeatmapPrevYear, onHeatmapNextYear]);
+  }, [ctx, commitMatrixCell, openEntry, openNewEntryForDate, setRefISO, onHeatmapPrevMonth, onHeatmapNextMonth, onHeatmapPrevYear, onHeatmapNextYear]);
 
   const projectsProps = useMemo<ProjectsViewProps | null>(() => {
     if (!ctx.isProjects) {

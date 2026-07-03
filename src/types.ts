@@ -178,21 +178,9 @@ export interface AppHeaderProps {
   sidebarOpen?: boolean;
 }
 
-export interface DayListRowVM {
-  id: string;
-  projectName: string;
-  comment: string;
-  hoursLabel: string;   // e.g. "2.5h"
-  earnLabel: string;    // e.g. "€320"
-  dotStyle: CSSProperties;
-  onClick: () => void;
-}
-
 // A single logged entry shown in the timesheet list on a project's (or
-// service's) detail page. Unlike DayListRowVM (used in the Track ledger,
-// grouped by day and labelled by project), this is grouped by
-// project/service and labelled by date since the project/service is
-// already implied by the page.
+// service's) detail page. Grouped by project/service and labelled by date
+// since the project/service is already implied by the page.
 export interface EntryDetailRowVM {
   id: string;
   dateLabel: string;    // e.g. "Jul 2, 2026"
@@ -202,18 +190,46 @@ export interface EntryDetailRowVM {
   onClick: () => void;
 }
 
-// One day in the Track ledger: a heading (weekday + date + day total) followed
-// by that day's entries in creation order, plus an "add entry" affordance
-// scoped to this specific date.
-export interface TrackDayVM {
+// One cell in the Track timesheet matrix: the hours logged for a given row
+// context (project / service / customer flat fee) on a given day. Single-
+// entry and empty cells edit inline — typing hours creates, updates or
+// (at 0) deletes the underlying entry. Multi-entry cells and customer-fee
+// creation (which needs an amount) fall back to the standard entry modal.
+export interface MatrixCellVM {
   iso: string;
-  dowLabel: string;          // e.g. "Thu"
-  dayNum: number;            // e.g. 2
+  hoursLabel: string;        // e.g. "2.5h" ('' when empty)
+  editValue: string;         // hours as editable text, e.g. "2.5" ('' when empty)
+  entryCount: number;
+  hasDetails: boolean;       // some entry in the cell has a comment/attachments
   isToday: boolean;
-  numStyle: CSSProperties;   // sized for the bare day number, badge-style when isToday
-  totalHoursLabel: string;   // e.g. "6h" ('' when the day is empty)
-  entries: DayListRowVM[];
-  onAddEntry: () => void;
+  isWeekend: boolean;
+  editable: boolean;         // false → clicking calls onOpen instead of inline edit
+  title: string;             // hover tooltip (comment preview / entry count)
+  onCommit: (hours: string) => void;
+  onOpen: (() => void) | null;  // open the entry modal (edit, or prefilled new)
+}
+
+// One row in the Track timesheet matrix. Rows are derived from the entries
+// in the displayed week — they are never added or removed by hand. New rows
+// appear via the standard "Add entry" modal; a row disappears once its last
+// entry in the week is deleted.
+export interface MatrixRowVM {
+  key: string;
+  name: string;              // project/service/customer name
+  subLabel: string;          // customer name (projects/services) or "Flat fee"
+  dotColor: string;
+  cells: MatrixCellVM[];
+  totalHoursLabel: string;
+  totalEarnLabel: string;    // '' when nothing earned
+}
+
+export interface TrackMatrixVM {
+  dayHeaders: { iso: string; label: string; isToday: boolean; isWeekend: boolean }[];
+  rows: MatrixRowVM[];
+  dayTotals: string[];       // aligned with dayHeaders ('' when the day is empty)
+  totalHoursLabel: string;
+  totalEarnLabel: string;
+  onAddEntry: () => void;    // opens the standard entry modal
 }
 
 // One day cell in the read-only month heatmap shown on the Track page.
@@ -241,7 +257,7 @@ export interface MonthHeatmapVM {
 }
 
 export interface TrackViewProps {
-  days: TrackDayVM[];
+  matrix: TrackMatrixVM;
   weekSummary: {
     weekLabel: string;    // e.g. "Week 27"
     hoursLabel: string;
