@@ -318,7 +318,7 @@ button:focus-visible {
   }
 
   .cal-grid {
-    grid-template-columns: 26px repeat(7, minmax(38px, 1fr)) !important;
+    grid-template-columns: 26px repeat(5, 1fr) !important;
     gap: 4px !important;
   }
 

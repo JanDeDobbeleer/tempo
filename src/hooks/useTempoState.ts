@@ -1646,6 +1646,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     for (let week = 0; week < 6; week += 1) {
       const days: TrackMonthDayVM[] = [];
       let weekMinutes = 0;
+      let weekendMinutes = 0;
       for (let day = 0; day < 7; day += 1) {
         const date = addDays(gridStart, week * 7 + day);
         const cellISO = iso(date);
@@ -1657,6 +1658,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         const cellMinutes = cellEntries.reduce((sum, entry) => sum + entry.minutes, 0);
         const cellEarn = cellEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
         weekMinutes += cellMinutes;
+        if (day >= 5) weekendMinutes += cellMinutes;
 
         const pipColors: string[] = [];
         const seenPipKeys = new Set<string>();
@@ -1690,6 +1692,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       weeks.push({
         weekLabel: `W${isoWeekNumber(addDays(gridStart, week * 7))}`,
         hoursLabel: weekMinutes > 0 ? fmtH(weekMinutes) : '',
+        hasWeekendData: weekendMinutes > 0,
         days,
       });
     }

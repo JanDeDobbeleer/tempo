@@ -231,6 +231,7 @@ export interface TrackMonthDayVM {
 export interface TrackWeekRowVM {
   weekLabel: string;         // e.g. "W27"
   hoursLabel: string;        // '' when the week is empty
+  hasWeekendData: boolean;   // true when Sat or Sun has logged hours (shown as indicator on mobile)
   days: TrackMonthDayVM[];
 }
 

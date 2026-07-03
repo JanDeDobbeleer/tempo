@@ -1,6 +1,7 @@
 import { Fragment, useEffect, type CSSProperties, type FC } from 'react'
 import type { TrackCalendarVM, TrackMonthDayVM, TrackViewProps } from '../types'
 import { addDays, iso, parseISO } from '../lib/dates'
+import { useIsMobile } from '../hooks/useMediaQuery'
 
 const statLabelStyle: CSSProperties = {
   fontSize: '10.5px',
@@ -240,6 +241,8 @@ const CalendarPanel: FC<{ calendar: TrackCalendarVM; accent: string }> = ({ cale
 }
 
 const TrackView: FC<TrackViewProps> = ({ calendar, accent }) => {
+  const isMobile = useIsMobile()
+
   // Arrow keys move the selected day when the calendar has focus. Only
   // active once a day is selected — the month-at-a-glance state doesn't
   // have a "current" day to move from.
@@ -279,24 +282,31 @@ const TrackView: FC<TrackViewProps> = ({ calendar, accent }) => {
 
           <div className="cal-grid" style={{ display: 'grid', gridTemplateColumns: '30px repeat(7, 1fr)', gap: '6px' }}>
             <div />
-            {calendar.dowLabels.map((label) => (
-              <div
-                key={label}
-                style={{ textAlign: 'center', fontSize: '11px', letterSpacing: '0.05em', color: '#9ca3af', fontFamily: "'Geist Mono',monospace", paddingBottom: '4px' }}
-              >
-                {label}
-              </div>
-            ))}
+            {calendar.dowLabels.map((label, i) => {
+              if (isMobile && i >= 5) return null
+              return (
+                <div
+                  key={label}
+                  style={{ textAlign: 'center', fontSize: '11px', letterSpacing: '0.05em', color: '#9ca3af', fontFamily: "'Geist Mono',monospace", paddingBottom: '4px' }}
+                >
+                  {label}
+                </div>
+              )
+            })}
 
             {calendar.weeks.map((week, weekIndex) => (
               <Fragment key={`gutter-${weekIndex}`}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', color: '#9ca3af', fontFamily: "'Geist Mono',monospace" }}>
                   <span style={{ fontSize: '10px', letterSpacing: '0.03em' }}>{week.weekLabel}</span>
                   <span style={{ fontSize: '10px', color: '#6b7280' }}>{week.hoursLabel}</span>
+                  {isMobile && week.hasWeekendData && (
+                    <span title="This week has weekend hours" style={{ fontSize: '8px', color: accent, lineHeight: 1 }}>●</span>
+                  )}
                 </div>
-                {week.days.map((day) => (
-                  <CalCell key={day.iso} day={day} accent={accent} />
-                ))}
+                {week.days.map((day, dayIndex) => {
+                  if (isMobile && dayIndex >= 5) return null
+                  return <CalCell key={day.iso} day={day} accent={accent} />
+                })}
               </Fragment>
             ))}
           </div>
