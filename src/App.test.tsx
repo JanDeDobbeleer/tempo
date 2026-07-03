@@ -22,16 +22,8 @@ vi.mock('./components/AppHeader', () => ({
   default: () => <div data-testid="app-header" />,
 }))
 
-vi.mock('./components/WeekView', () => ({
-  default: () => <div data-testid="week-view" />,
-}))
-
-vi.mock('./components/DayView', () => ({
-  default: () => <div data-testid="day-view" />,
-}))
-
-vi.mock('./components/MonthView', () => ({
-  default: () => <div data-testid="month-view" />,
+vi.mock('./components/TrackView', () => ({
+  default: () => <div data-testid="track-view" />,
 }))
 
 vi.mock('./components/ProjectsView', () => ({
@@ -87,9 +79,7 @@ const mockedUseIsMobile = vi.mocked(useIsMobile)
 
 function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel {
   return {
-    showWeek: true,
-    showDay: false,
-    showMonth: false,
+    showTrack: true,
     showProjects: false,
     showServices: false,
     showCustomers: false,
@@ -129,12 +119,6 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       isProjects: false,
       isServices: false,
       isCustomers: false,
-      tabDayStyle: {},
-      tabWeekStyle: {},
-      tabMonthStyle: {},
-      onTabDay: vi.fn(),
-      onTabWeek: vi.fn(),
-      onTabMonth: vi.fn(),
       onPrev: vi.fn(),
       onToday: vi.fn(),
       onNext: vi.fn(),
@@ -144,9 +128,7 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
       onNewService: vi.fn(),
       onNewCustomer: vi.fn(),
     },
-    weekProps: { weekDays: [], gutterStyle: {}, hourRows: [] },
-    dayProps: null,
-    monthProps: null,
+    trackProps: { days: [], weekSummary: { weekLabel: 'Week 27', hoursLabel: '0h', daysLabel: '0', earnLabel: '€0' }, monthHeatmap: { monthLabel: 'July 2026', weeks: [], dowLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], onPrevMonth: () => {}, onNextMonth: () => {}, onPrevYear: () => {}, onNextYear: () => {} }, accent: '#2563eb' },
     projectsProps: null,
     servicesProps: null,
     customersProps: null,
@@ -177,14 +159,14 @@ describe('App FAB integration', () => {
 
   test('shows New project on the projects screen', () => {
     mockedUseTempoState.mockReturnValue(makeViewModel({
-      showWeek: false,
+      showTrack: false,
       showProjects: true,
       headerProps: {
         ...makeViewModel().headerProps,
         isTrack: false,
         isProjects: true,
       },
-      weekProps: null,
+      trackProps: null,
       projectsProps: { projRows: [], projEmpty: true },
     }))
 
@@ -195,14 +177,14 @@ describe('App FAB integration', () => {
 
   test('shows New service on the services screen', () => {
     mockedUseTempoState.mockReturnValue(makeViewModel({
-      showWeek: false,
+      showTrack: false,
       showServices: true,
       headerProps: {
         ...makeViewModel().headerProps,
         isTrack: false,
         isServices: true,
       },
-      weekProps: null,
+      trackProps: null,
       servicesProps: { serviceRows: [], serviceEmpty: true },
     }))
 
@@ -213,10 +195,10 @@ describe('App FAB integration', () => {
 
   test('hides the FAB on settings and detail screens', () => {
     const scenarios: TempoViewModel[] = [
-      makeViewModel({ showWeek: false, showSettings: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, weekProps: null, settingsProps: {} as TempoViewModel['settingsProps'] }),
-      makeViewModel({ showWeek: false, showCustomerDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, weekProps: null, customerDetailProps: {} as TempoViewModel['customerDetailProps'] }),
-      makeViewModel({ showWeek: false, showProjectDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, weekProps: null, projectDetailProps: {} as TempoViewModel['projectDetailProps'] }),
-      makeViewModel({ showWeek: false, showServiceDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, weekProps: null, serviceDetailProps: {} as TempoViewModel['serviceDetailProps'] }),
+      makeViewModel({ showTrack: false, showSettings: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, trackProps: null, settingsProps: {} as TempoViewModel['settingsProps'] }),
+      makeViewModel({ showTrack: false, showCustomerDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, trackProps: null, customerDetailProps: {} as TempoViewModel['customerDetailProps'] }),
+      makeViewModel({ showTrack: false, showProjectDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, trackProps: null, projectDetailProps: {} as TempoViewModel['projectDetailProps'] }),
+      makeViewModel({ showTrack: false, showServiceDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, trackProps: null, serviceDetailProps: {} as TempoViewModel['serviceDetailProps'] }),
     ]
 
     for (const scenario of scenarios) {

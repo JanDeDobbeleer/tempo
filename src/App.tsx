@@ -4,9 +4,7 @@ import { useIsMobile } from './hooks/useMediaQuery';
 import type { TempoSettings } from './types';
 import Sidebar from './components/Sidebar';
 import AppHeader from './components/AppHeader';
-import WeekView from './components/WeekView';
-import DayView from './components/DayView';
-import MonthView from './components/MonthView';
+import TrackView from './components/TrackView';
 import ProjectsView from './components/ProjectsView';
 import ServicesView from './components/ServicesView';
 import CustomersView from './components/CustomersView';
@@ -34,9 +32,7 @@ const App: FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
   const {
-    showWeek,
-    showDay,
-    showMonth,
+    showTrack,
     showProjects,
     showServices,
     showCustomers,
@@ -49,9 +45,7 @@ const App: FC = () => {
     modalOpen,
     sidebarProps,
     headerProps,
-    weekProps,
-    dayProps,
-    monthProps,
+    trackProps,
     projectsProps,
     servicesProps,
     customersProps,
@@ -95,9 +89,7 @@ const App: FC = () => {
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
         />
 
-        {showWeek && weekProps && <WeekView {...weekProps} />}
-        {showDay && dayProps && <DayView {...dayProps} />}
-        {showMonth && monthProps && <MonthView {...monthProps} />}
+        {showTrack && trackProps && <TrackView {...trackProps} />}
         {showProjects && projectsProps && <ProjectsView {...projectsProps} />}
         {showServices && servicesProps && <ServicesView {...servicesProps} />}
         {showCustomers && customersProps && <CustomersView {...customersProps} />}

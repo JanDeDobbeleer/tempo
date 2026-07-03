@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { addDays, addMonths, fmtFullDate, fmtMonthYear, fmtShortDate, fmtShortDateYear, iso, pad, parseISO, quarterBounds, startOfWeek, yearBounds } from './dates';
+import { addDays, addMonths, fmtFullDate, fmtMonthYear, fmtShortDate, fmtShortDateYear, iso, isoWeekNumber, pad, parseISO, quarterBounds, startOfWeek, yearBounds } from './dates';
 
 describe('dates helpers', () => {
   test('pad prefixes single digits', () => {
@@ -41,5 +41,12 @@ describe('dates helpers', () => {
 
   test('yearBounds returns Jan 1 - Dec 31 of the date\'s year', () => {
     expect(yearBounds(parseISO('2026-07-01'))).toEqual({ from: '2026-01-01', to: '2026-12-31' });
+  });
+
+  test('isoWeekNumber returns the ISO-8601 week number', () => {
+    expect(isoWeekNumber(parseISO('2026-07-02'))).toBe(27);
+    expect(isoWeekNumber(parseISO('2026-01-01'))).toBe(1); // Thursday, week 1
+    expect(isoWeekNumber(parseISO('2025-12-29'))).toBe(1); // Monday, belongs to 2026's week 1
+    expect(isoWeekNumber(parseISO('2026-12-31'))).toBe(53); // Thursday, last ISO week of 2026
   });
 });

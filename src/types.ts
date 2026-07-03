@@ -3,7 +3,7 @@
 // flowing between the state hook (useTempoState) and the presentational
 // components. Keep it in sync with both sides.
 
-import type { CSSProperties, MouseEvent, PointerEvent, ChangeEvent } from 'react';
+import type { CSSProperties, MouseEvent, ChangeEvent } from 'react';
 
 // ─── domain model ────────────────────────────────────────────────────────
 
@@ -56,14 +56,12 @@ export interface Entry {
   // Flat fee for a 'customer' entry, tied only to that specific entry (no
   // rate table, no proration). Null for 'project'/'service' entries.
   amount: number | null;
-  start: number;        // minutes from midnight
-  end: number;          // minutes from midnight
+  minutes: number;      // logged duration in minutes
   comment: string;
   attachments: AttachmentRef[];
 }
 
 export type Page = 'track' | 'projects' | 'services' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail' | 'serviceDetail' | 'export' | 'earnings';
-export type View = 'week' | 'day' | 'month';
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'conflict';
 
 export type ModalType = 'entry' | 'customer';
@@ -76,8 +74,13 @@ export interface EntryForm {
   customerId: string;
   amount: string;  // flat fee for 'customer' kind, as text input
   date: string;
-  start: string;  // "HH:MM"
-  end: string;    // "HH:MM"
+  hours: string;   // logged duration in hours, as text input (e.g. "2.5")
+  // Recurring/multi-day quick entry. When `repeat` is true the modal creates
+  // one entry per included day between `date` and `endDate` (inclusive),
+  // skipping Saturdays/Sundays when `skipWeekends` is set.
+  repeat: boolean;
+  endDate: string;        // ISO yyyy-mm-dd, used only when `repeat`
+  skipWeekends: boolean;
   comment: string;
   attachments: AttachmentRef[];
 }
@@ -111,12 +114,6 @@ export interface ModalState {
   type: ModalType;
   isNew: boolean;
   form: ModalForm;
-}
-
-export interface DragState {
-  iso: string;
-  a: number;
-  b: number;
 }
 
 export interface PersistedData {
@@ -168,12 +165,6 @@ export interface AppHeaderProps {
   isProjects: boolean;
   isServices: boolean;
   isCustomers: boolean;
-  tabDayStyle: CSSProperties;
-  tabWeekStyle: CSSProperties;
-  tabMonthStyle: CSSProperties;
-  onTabDay: () => void;
-  onTabWeek: () => void;
-  onTabMonth: () => void;
   onPrev: () => void;
   onToday: () => void;
   onNext: () => void;
@@ -187,91 +178,64 @@ export interface AppHeaderProps {
   sidebarOpen?: boolean;
 }
 
-export interface EntryBlockVM {
-  id: string;
-  projectName: string;
-  comment: string;
-  timeLabel: string;
-  style: CSSProperties;
-  onClick: () => void;
-  stop: (e: PointerEvent) => void;
-}
-
-export interface WeekDayVM {
-  iso: string;
-  dow: string;
-  dayNum: number;
-  numStyle: CSSProperties;
-  colStyle: CSSProperties;
-  entries: EntryBlockVM[];
-  drag: CSSProperties | null;
-  dragLabel: string;
-  onPointerDown: (e: PointerEvent) => void;
-  onHeaderClick: () => void;
-}
-
-export interface HourRowVM {
-  label: string;
-  style: CSSProperties;
-}
-
-export interface WeekViewProps {
-  weekDays: WeekDayVM[];
-  gutterStyle: CSSProperties;
-  hourRows: HourRowVM[];
-}
-
 export interface DayListRowVM {
   id: string;
   projectName: string;
   comment: string;
-  timeLabel: string;
+  hoursLabel: string;   // e.g. "2.5h"
+  earnLabel: string;    // e.g. "€320"
   dotStyle: CSSProperties;
   onClick: () => void;
 }
 
-export interface DayDataVM {
-  colStyle: CSSProperties;
-  entries: EntryBlockVM[];
-  drag: CSSProperties | null;
-  dragLabel: string;
-  onPointerDown: (e: PointerEvent) => void;
-  totalH: string;
-  totalDays: string;
-  totalEarn: string;
-  empty: boolean;
-  list: DayListRowVM[];
+// One day in the Track ledger: a heading (weekday + date + day total) followed
+// by that day's entries in creation order, plus an "add entry" affordance
+// scoped to this specific date.
+export interface TrackDayVM {
+  iso: string;
+  dowLabel: string;          // e.g. "Thu"
+  dayNum: number;            // e.g. 2
+  isToday: boolean;
+  numStyle: CSSProperties;   // sized for the bare day number, badge-style when isToday
+  totalHoursLabel: string;   // e.g. "6h" ('' when the day is empty)
+  entries: DayListRowVM[];
+  onAddEntry: () => void;
 }
 
-export interface DayViewProps {
-  dayData: DayDataVM;
-  gutterStyle: CSSProperties;
-  hourRows: HourRowVM[];
-  accent: string;
-}
-
-export interface MonthDotVM {
-  style: CSSProperties;
-}
-
-export interface MonthCellVM {
+// One day cell in the read-only month heatmap shown on the Track page.
+// Shading intensity encodes hours logged that day; clicking navigates the
+// ledger to the week containing this date. Purely glanceable — no entry
+// creation/editing happens here.
+export interface MonthHeatmapDayVM {
+  iso: string;
   dayNum: number;
-  style: CSSProperties;
-  numStyle: CSSProperties;
-  hasEntries: boolean;
-  hours: string;
-  earn: string;
-  dots: MonthDotVM[];
+  style: CSSProperties;      // fully-computed cell style incl. shading
+  hoursLabel: string;        // e.g. "6h" ('' when the day is empty)
+  isToday: boolean;
+  isCurrentMonth: boolean;   // false for leading/trailing days of adjacent months
   onClick: () => void;
 }
 
-export interface MonthWeekVM {
-  days: MonthCellVM[];
+export interface MonthHeatmapVM {
+  monthLabel: string;        // e.g. "July 2026"
+  weeks: MonthHeatmapDayVM[][];
+  dowLabels: string[];       // Mon..Sun column headers
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  onPrevYear: () => void;
+  onNextYear: () => void;
 }
 
-export interface MonthViewProps {
-  monthWeeks: MonthWeekVM[];
-  monthDowLabels: string[];
+export interface TrackViewProps {
+  days: TrackDayVM[];
+  weekSummary: {
+    weekLabel: string;    // e.g. "Week 27"
+    hoursLabel: string;
+    daysLabel: string;
+    earnLabel: string;
+  };
+  monthHeatmap: MonthHeatmapVM;
+  accent: string;
 }
 
 export interface ProjectRowVM {
@@ -350,6 +314,11 @@ export interface AttachmentListItemVM {
   onDelete: () => void;
 }
 
+export interface HoursPresetVM {
+  label: string;
+  value: string;
+}
+
 export interface ModalProps {
   modalTitle: string;
   saveLabel: string;
@@ -370,8 +339,12 @@ export interface ModalProps {
   onFormEntryCustomer: (e: ChangeEvent<HTMLSelectElement>) => void;
   onFormAmount: (e: ChangeEvent<HTMLInputElement>) => void;
   onFormDate: (e: ChangeEvent<HTMLInputElement>) => void;
-  onFormStart: (e: ChangeEvent<HTMLInputElement>) => void;
-  onFormEnd: (e: ChangeEvent<HTMLInputElement>) => void;
+  onFormHours: (e: ChangeEvent<HTMLInputElement>) => void;
+  hoursPresets: HoursPresetVM[];
+  onPresetHours: (value: string) => void;
+  onToggleRepeat: (repeat: boolean) => void;
+  onFormEndDate: (e: ChangeEvent<HTMLInputElement>) => void;
+  onToggleSkipWeekends: (skip: boolean) => void;
   onFormComment: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   onFormName: (e: ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
@@ -536,9 +509,7 @@ export interface SettingsViewProps {
 // ─── the aggregate view-model returned by useTempoState() ───────────────
 
 export interface TempoViewModel {
-  showWeek: boolean;
-  showDay: boolean;
-  showMonth: boolean;
+  showTrack: boolean;
   showProjects: boolean;
   showServices: boolean;
   showCustomers: boolean;
@@ -551,9 +522,7 @@ export interface TempoViewModel {
   modalOpen: boolean;
   sidebarProps: SidebarProps;
   headerProps: AppHeaderProps;
-  weekProps: WeekViewProps | null;
-  dayProps: DayViewProps | null;
-  monthProps: MonthViewProps | null;
+  trackProps: TrackViewProps | null;
   projectsProps: ProjectsViewProps | null;
   servicesProps: ServicesViewProps | null;
   customersProps: CustomersViewProps | null;

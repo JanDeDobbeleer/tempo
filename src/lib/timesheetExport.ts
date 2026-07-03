@@ -160,19 +160,56 @@ export async function buildTimesheetPdf(options: TimesheetExportOptions): Promis
   let totalMinutes = 0;
   let totalAmount = 0;
 
-  sorted.forEach(({ entry, project, service }) => {
-    const minutes = entry.end - entry.start;
-    const amount = entryEarnValue(entry, project ?? undefined, service ?? undefined, hoursPerDay);
+  // Merge all entries that share a calendar date into a single table row: sum
+  // their minutes and amounts, and combine their descriptions. The footer totals
+  // are unaffected — they sum every entry regardless of this grouping.
+  const nameForItem = ({ project, service, entry }: TimesheetExportEntry): string => {
+    if (project) {
+      return project.name;
+    }
+    if (service) {
+      return service.name;
+    }
+    return entry.kind === 'customer' ? 'Fixed amount' : 'Entry';
+  };
+
+  const dayRows: { date: string; minutes: number; amount: number; description: string }[] = [];
+  sorted.forEach((item) => {
+    const minutes = item.entry.minutes;
+    const amount = entryEarnValue(item.entry, item.project ?? undefined, item.service ?? undefined, hoursPerDay);
     totalMinutes += minutes;
     totalAmount += amount;
 
+    const existing = dayRows.length > 0 && dayRows[dayRows.length - 1].date === item.entry.date
+      ? dayRows[dayRows.length - 1]
+      : null;
+    const row = existing ?? (() => {
+      const created = { date: item.entry.date, minutes: 0, amount: 0, description: '' };
+      dayRows.push(created);
+      return created;
+    })();
+
+    row.minutes += minutes;
+    row.amount += amount;
+
+    // Prefer the entry's own comment; fall back to its project/service name so a
+    // merged row never silently drops an entry's contribution.
+    const piece = (item.entry.comment && item.entry.comment.trim()) || nameForItem(item);
+    const parts = row.description ? row.description.split('; ') : [];
+    if (piece && !parts.includes(piece)) {
+      parts.push(piece);
+    }
+    row.description = parts.join('; ');
+  });
+
+  dayRows.forEach((row) => {
     const rowTop = y;
-    page.drawText(fmtShortDateYear(parseISO(entry.date)), { x: columns[0].x + 4, y: rowTop, size: 10, font, color: INK });
-    page.drawText(fmtH(minutes), { x: columns[1].x + 4, y: rowTop, size: 10, font, color: INK });
-    const commentLines = entry.comment
-      ? drawWrapped(page, entry.comment, columns[2].x + 4, rowTop, columns[2].width - 8, font, 10)
+    page.drawText(fmtShortDateYear(parseISO(row.date)), { x: columns[0].x + 4, y: rowTop, size: 10, font, color: INK });
+    page.drawText(fmtH(row.minutes), { x: columns[1].x + 4, y: rowTop, size: 10, font, color: INK });
+    const commentLines = row.description
+      ? drawWrapped(page, row.description, columns[2].x + 4, rowTop, columns[2].width - 8, font, 10)
       : 1;
-    const amountText = fmtEUR(amount);
+    const amountText = fmtEUR(row.amount);
     const amountWidth = font.widthOfTextAtSize(amountText, 10);
     page.drawText(amountText, { x: columns[3].x + columns[3].width - 4 - amountWidth, y: rowTop, size: 10, font, color: INK });
 

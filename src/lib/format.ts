@@ -1,12 +1,18 @@
-import { pad } from './dates';
-
-export function fmtMin(min: number): string {
-  return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+// Converts a user-typed hours value (e.g. "2.5") to whole minutes. Returns
+// NaN for non-numeric input so callers can validate.
+export function hoursToMinutes(hours: string): number {
+  if (hours.trim() === '') {
+    return NaN;
+  }
+  const value = Number(hours);
+  return Number.isFinite(value) ? Math.round(value * 60) : NaN;
 }
 
-export function parseHM(s: string): number {
-  const [hours = 0, minutes = 0] = (s || '0:0').split(':').map(Number);
-  return (hours || 0) * 60 + (minutes || 0);
+// Renders a duration in minutes as a decimal hours string for a form field
+// (e.g. 150 -> "2.5", 60 -> "1").
+export function minutesToHours(min: number): string {
+  const hours = Math.round((min / 60) * 100) / 100;
+  return String(hours);
 }
 
 export function fmtH(min: number): string {

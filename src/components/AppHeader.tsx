@@ -8,12 +8,6 @@ const AppHeader: FC<AppHeaderProps> = ({
   isProjects,
   isServices,
   isCustomers,
-  tabDayStyle,
-  tabWeekStyle,
-  tabMonthStyle,
-  onTabDay,
-  onTabWeek,
-  onTabMonth,
   onPrev,
   onToday,
   onNext,
@@ -98,26 +92,6 @@ const AppHeader: FC<AppHeaderProps> = ({
       >
         {isTrack && (
           <>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                background: '#f0f1f4',
-                borderRadius: '9px',
-                padding: '3px',
-              }}
-            >
-              <button type="button" style={tabDayStyle} onClick={onTabDay}>
-                Day
-              </button>
-              <button type="button" style={tabWeekStyle} onClick={onTabWeek}>
-                Week
-              </button>
-              <button type="button" style={tabMonthStyle} onClick={onTabMonth}>
-                Month
-              </button>
-            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button
                 type="button"

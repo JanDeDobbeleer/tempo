@@ -23,6 +23,18 @@ export function addMonths(d: Date, n: number): Date {
   return next;
 }
 
+// ISO-8601 week number (weeks start Monday; week 1 contains the year's first
+// Thursday). Standard "W27"-style week numbering used across Europe.
+export function isoWeekNumber(d: Date): number {
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayNum = (date.getDay() + 6) % 7; // Monday=0..Sunday=6
+  date.setDate(date.getDate() - dayNum + 3); // nearest Thursday
+  const firstThursday = new Date(date.getFullYear(), 0, 4);
+  const firstThursdayDayNum = (firstThursday.getDay() + 6) % 7;
+  firstThursday.setDate(firstThursday.getDate() - firstThursdayDayNum + 3);
+  return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+}
+
 export function startOfWeek(d: Date): Date {
   const next = new Date(d);
   const dayOfWeek = (next.getDay() + 6) % 7;

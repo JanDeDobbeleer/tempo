@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type MouseEvent } from 'react';
 
-import { addDays, addMonths, fmtFullDate, fmtMonthYear, fmtShortDate, fmtShortDateYear, iso, parseISO, startOfWeek } from '../lib/dates';
-import { fmtEUR, fmtH, fmtMin, fmtBytes, hexToRgba, parseHM, uid } from '../lib/format';
+import { addDays, addMonths, fmtMonthYear, fmtShortDate, fmtShortDateYear, iso, isoWeekNumber, parseISO, startOfWeek } from '../lib/dates';
+import { fmtEUR, fmtH, fmtBytes, hexToRgba, hoursToMinutes, minutesToHours, uid } from '../lib/format';
 import { addRatePeriod, currentRatePeriod, hasOverlap, rateForDate, sortRates } from '../lib/rates';
 import * as store from '../lib/store';
 import type {
@@ -13,20 +13,14 @@ import type {
   CustomerForm,
   CustomersViewProps,
   DayListRowVM,
-  DayViewProps,
-  DragState,
   EarningsFilterSeed,
   EarningsViewProps,
   Entry,
-  EntryBlockVM,
   EntryForm,
   ExportScope,
   ExportViewProps,
-  HourRowVM,
   ModalProps,
   ModalState,
-  MonthCellVM,
-  MonthViewProps,
   Page,
   PersistedData,
   Project,
@@ -44,15 +38,10 @@ import type {
   SyncStatus,
   TempoSettings,
   TempoViewModel,
-  View,
-  WeekDayVM,
-  WeekViewProps,
+  MonthHeatmapDayVM,
+  TrackDayVM,
+  TrackViewProps,
 } from '../types';
-
-const ROW = 44;
-const START = 7;
-const END = 22;
-const PAD = 12;
 
 const PALETTE = ['#2563eb', '#0d9488', '#7c3aed', '#d97706', '#db2777', '#65a30d', '#0891b2', '#dc2626'];
 
@@ -96,10 +85,8 @@ function colorForEntry(
 
 type TempoState = PersistedData & {
   page: Page;
-  view: View;
   refISO: string;
   modal: ModalState | null;
-  drag: DragState | null;
   demoMode: boolean;
   syncStatus: SyncStatus;
   stateEtag: string;
@@ -117,7 +104,7 @@ type TempoState = PersistedData & {
 };
 
 type ProjectOrigin = { page: 'projects' } | { page: 'customerDetail'; customerId: string };
-type EntryDraft = Pick<Entry, 'kind' | 'projectId' | 'serviceId' | 'customerId' | 'date' | 'start' | 'end' | 'comment'> & Partial<Pick<Entry, 'id' | 'attachments' | 'amount'>>;
+type EntryDraft = Pick<Entry, 'kind' | 'projectId' | 'serviceId' | 'customerId' | 'date' | 'minutes' | 'comment'> & Partial<Pick<Entry, 'id' | 'attachments' | 'amount'>>;
 
 type RenderCtx = {
   S: TempoState;
@@ -141,9 +128,7 @@ type RenderCtx = {
   isExport: boolean;
   isEarnings: boolean;
   navSection: 'track' | 'projects' | 'services' | 'customers' | 'settings' | 'export' | 'earnings';
-  isWeek: boolean;
-  isDay: boolean;
-  isMonth: boolean;
+  heatmapAnchor: Date;
 };
 
 function getHoursPerDay(settings: TempoSettings): number {
@@ -151,18 +136,9 @@ function getHoursPerDay(settings: TempoSettings): number {
   return value > 0 ? value : 8;
 }
 
-function minToY(min: number): number {
-  return (min / 60 - START) * ROW + PAD;
-}
-
-function yToMin(clientY: number, rect: DOMRect | null): number {
-  if (!rect) {
-    return START * 60;
-  }
-
-  let raw = ((clientY - rect.top - PAD) / ROW) * 60 + START * 60;
-  raw = Math.max(START * 60, Math.min(END * 60, raw));
-  return Math.round(raw / 15) * 15;
+function isWeekend(date: Date): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6;
 }
 
 function navStyle(active: boolean, accent: string): CSSProperties {
@@ -184,51 +160,6 @@ function navStyle(active: boolean, accent: string): CSSProperties {
   };
 }
 
-function tabStyle(active: boolean): CSSProperties {
-  return {
-    padding: '9px 15px',
-    minHeight: '44px',
-    borderRadius: '7px',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: active ? 600 : 500,
-    background: active ? '#ffffff' : 'transparent',
-    color: active ? '#1a1c20' : '#626873',
-    boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-  };
-}
-
-function dragOverlay(drag: DragState | null, accent: string): { style: CSSProperties; label: string } | null {
-  if (!drag) {
-    return null;
-  }
-
-  const start = Math.min(drag.a, drag.b);
-  const end = Math.max(drag.a, drag.b);
-  const top = minToY(start);
-  const height = Math.max(10, minToY(end) - minToY(start));
-
-  return {
-    style: {
-      position: 'absolute',
-      left: '4px',
-      right: '4px',
-      top: `${top}px`,
-      height: `${height}px`,
-      background: hexToRgba(accent, 0.85),
-      border: `1px solid ${accent}`,
-      borderRadius: '7px',
-      pointerEvents: 'none',
-      display: 'flex',
-      alignItems: 'flex-start',
-      justifyContent: 'flex-end',
-      padding: '3px 7px',
-    },
-    label: `${fmtMin(start)}–${fmtMin(end)}`,
-  };
-}
-
 function createEmptyData(): PersistedData {
   return {
     customers: [],
@@ -243,14 +174,12 @@ function createStateFromData(data: PersistedData, demoMode: boolean): TempoState
 
   return {
     page: 'track',
-    view: 'week',
     refISO: iso(today),
     customers: data.customers,
     projects: data.projects,
     services: data.services,
     entries: data.entries,
     modal: null,
-    drag: null,
     demoMode,
     syncStatus: 'idle',
     stateEtag: '',
@@ -272,11 +201,10 @@ function makeProjectEntry(
   id: string,
   date: string,
   projectId: string,
-  start: number,
-  end: number,
+  minutes: number,
   comment: string,
 ): Entry {
-  return { id, kind: 'project', date, projectId, serviceId: null, customerId: null, amount: null, start, end, comment, attachments: [] };
+  return { id, kind: 'project', date, projectId, serviceId: null, customerId: null, amount: null, minutes, comment, attachments: [] };
 }
 
 function createDemoSeed(): PersistedData {
@@ -305,16 +233,16 @@ function createDemoSeed(): PersistedData {
       { id: 's2', name: 'Training', rates: seedRate('sr2', 900) },
     ],
     entries: [
-      makeProjectEntry('e1', dayISO(0), 'p1', 540, 750, 'Wireframe review & IA'),
-      makeProjectEntry('e2', dayISO(0), 'p3', 810, 960, 'Logo exploration'),
-      makeProjectEntry('e3', dayISO(1), 'p2', 510, 660, 'Onboarding flow'),
-      makeProjectEntry('e4', dayISO(1), 'p4', 840, 1050, 'Charts components'),
-      makeProjectEntry('e5', dayISO(2), 'p1', 540, 780, 'Homepage build'),
-      makeProjectEntry('e6', dayISO(2), 'p5', 870, 990, 'API field mapping'),
-      { id: 'e7', kind: 'service', date: dayISO(3), projectId: null, serviceId: 's1', customerId: 'c2', amount: null, start: 600, end: 720, comment: 'Workshop facilitation', attachments: [] },
-      makeProjectEntry('e8', dayISO(3), 'p2', 780, 1020, 'Push notifications'),
-      makeProjectEntry('e9', dayISO(4), 'p1', 570, 720, 'QA & polish'),
-      { id: 'e10', kind: 'service', date: dayISO(4), projectId: null, serviceId: 's2', customerId: 'c1', amount: null, start: 780, end: 930, comment: 'Team training', attachments: [] },
+      makeProjectEntry('e1', dayISO(0), 'p1', 210, 'Wireframe review & IA'),
+      makeProjectEntry('e2', dayISO(0), 'p3', 150, 'Logo exploration'),
+      makeProjectEntry('e3', dayISO(1), 'p2', 150, 'Onboarding flow'),
+      makeProjectEntry('e4', dayISO(1), 'p4', 210, 'Charts components'),
+      makeProjectEntry('e5', dayISO(2), 'p1', 240, 'Homepage build'),
+      makeProjectEntry('e6', dayISO(2), 'p5', 120, 'API field mapping'),
+      { id: 'e7', kind: 'service', date: dayISO(3), projectId: null, serviceId: 's1', customerId: 'c2', amount: null, minutes: 120, comment: 'Workshop facilitation', attachments: [] },
+      makeProjectEntry('e8', dayISO(3), 'p2', 240, 'Push notifications'),
+      makeProjectEntry('e9', dayISO(4), 'p1', 150, 'QA & polish'),
+      { id: 'e10', kind: 'service', date: dayISO(4), projectId: null, serviceId: 's2', customerId: 'c1', amount: null, minutes: 150, comment: 'Team training', attachments: [] },
     ],
   };
 }
@@ -367,85 +295,15 @@ function createInitialState(): TempoState {
   return createStateFromData(getStoreData(demoMode), demoMode);
 }
 
-function buildDayEntries(
-  entries: Entry[],
-  projById: Record<string, Project>,
-  serviceById: Record<string, Service>,
-  custById: Record<string, Customer>,
-  dayISO: string,
-  openEntry: (entry: Entry, isNew: boolean) => void,
-): EntryBlockVM[] {
-  return entries
-    .filter((entry) => entry.date === dayISO)
-    .sort((a, b) => a.start - b.start)
-    .map((entry) => {
-      const color = colorForEntry(entry, projById, custById);
-      const top = minToY(entry.start);
-      const height = Math.max(26, minToY(entry.end) - minToY(entry.start));
-
-      return {
-        id: entry.id,
-        projectName: labelForEntry(entry, projById, serviceById, custById),
-        comment: entry.comment,
-        timeLabel: `${fmtMin(entry.start)}–${fmtMin(entry.end)} · ${fmtH(entry.end - entry.start)}`,
-        style: {
-          position: 'absolute',
-          left: '4px',
-          right: '4px',
-          top: `${top}px`,
-          height: `${height}px`,
-          background: hexToRgba(color, 0.11),
-          borderLeft: `3px solid ${color}`,
-          borderRadius: '7px',
-          padding: '5px 9px',
-          cursor: 'pointer',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1px',
-          boxSizing: 'border-box',
-          transition: 'box-shadow .12s',
-        },
-        onClick: () => openEntry(entry, false),
-        stop: (event) => event.stopPropagation(),
-      };
-    });
-}
-
-function buildGridShared(): { gridHeight: number; gutterStyle: CSSProperties; hourRows: HourRowVM[] } {
-  const gridHeight = (END - START) * ROW + PAD + 10;
-  const hourRows: HourRowVM[] = [];
-
-  // HourRowVM has no stable id field in the shared contract; consumers should key by array index.
-  for (let hour = START; hour <= END; hour += 1) {
-    hourRows.push({
-      label: fmtMin(hour * 60),
-      style: {
-        position: 'absolute',
-        top: `${minToY(hour * 60)}px`,
-        right: '10px',
-        transform: 'translateY(-50%)',
-        fontSize: '11px',
-        color: '#9ca3af',
-        fontFamily: "'Geist Mono', monospace",
-        whiteSpace: 'nowrap',
-      },
-    });
-  }
-
-  return {
-    gridHeight,
-    gutterStyle: { width: '64px', flexShrink: 0, position: 'relative', height: `${gridHeight}px` },
-    hourRows,
-  };
-}
-
 export function useTempoState(settings: TempoSettings): TempoViewModel {
   const [state, setState] = useState<TempoState>(createInitialState);
   const stateRef = useRef(state);
-  const rectRef = useRef<DOMRect | null>(null);
-  const draggingRef = useRef(false);
   const skipNextPushRef = useRef(false);
+  // The month heatmap normally follows the active ledger week (ref), but the
+  // user can browse other months/years independently via the heatmap's own
+  // nav controls. `null` means "follow the ledger"; it resets to that once
+  // the ledger's own navigation (setRefISO) moves to a different month.
+  const [heatmapAnchorISO, setHeatmapAnchorISO] = useState<string | null>(null);
 
   useEffect(() => {
     stateRef.current = state;
@@ -465,8 +323,10 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           customerId: entry.customerId ?? '',
           amount: entry.amount != null ? String(entry.amount) : '',
           date: entry.date,
-          start: fmtMin(entry.start),
-          end: fmtMin(entry.end),
+          hours: minutesToHours(entry.minutes),
+          repeat: false,
+          endDate: entry.date,
+          skipWeekends: true,
           comment: entry.comment || '',
           attachments: entry.attachments ?? [],
         },
@@ -474,19 +334,22 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }));
   }, []);
 
-  const openNewEntry = useCallback(() => {
+  const openNewEntryForDate = useCallback((dateISO: string) => {
     const kind = stateRef.current.projects[0] ? 'project' : 'service';
     openEntry({
       kind,
       projectId: kind === 'project' ? (stateRef.current.projects[0]?.id || '') : null,
       serviceId: kind === 'service' ? (stateRef.current.services[0]?.id || '') : null,
       customerId: kind === 'service' ? (stateRef.current.customers[0]?.id || '') : null,
-      date: stateRef.current.refISO,
-      start: 540,
-      end: 600,
+      date: dateISO,
+      minutes: 60,
       comment: '',
     }, true);
   }, [openEntry]);
+
+  const openNewEntry = useCallback(() => {
+    openNewEntryForDate(stateRef.current.refISO);
+  }, [openNewEntryForDate]);
 
   const draftFromProject = useCallback((project: Project | null, customers: Customer[], presetCustomerId?: string): ProjectForm => (
     project
@@ -602,7 +465,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     setState((current) => ({ ...current, modal: null }));
   }, []);
 
-  const updateForm = useCallback((key: string, value: string) => {
+  const updateForm = useCallback((key: string, value: string | boolean) => {
     setState((current) => {
       if (!current.modal) {
         return current;
@@ -1005,30 +868,54 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
 
     if (modal.type === 'entry') {
       const form = modal.form as EntryForm;
-      const start = parseHM(form.start);
-      const end = parseHM(form.end);
+      const minutes = hoursToMinutes(form.hours);
       const invalidProject = form.kind === 'project' && !form.projectId;
       const invalidService = form.kind === 'service' && (!form.serviceId || !form.customerId);
       const parsedAmount = Number(form.amount);
       const invalidCustomer = form.kind === 'customer' && (!form.customerId || !Number.isFinite(parsedAmount) || parsedAmount <= 0);
-      if (invalidProject || invalidService || invalidCustomer || end <= start) {
+      if (invalidProject || invalidService || invalidCustomer || !Number.isFinite(minutes) || minutes <= 0) {
         return;
       }
 
-      const id = form.id ?? uid();
-      const savedEntry: Entry = {
+      const buildEntry = (id: string, date: string, attachments: EntryForm['attachments']): Entry => ({
         id,
         kind: form.kind,
         projectId: form.kind === 'project' ? form.projectId : null,
         serviceId: form.kind === 'service' ? form.serviceId : null,
         customerId: form.kind === 'service' || form.kind === 'customer' ? form.customerId : null,
         amount: form.kind === 'customer' ? parsedAmount : null,
-        date: form.date,
-        start,
-        end,
+        date,
+        minutes,
         comment: form.comment,
-        attachments: form.attachments,
-      };
+        attachments,
+      });
+
+      if (modal.isNew && form.repeat) {
+        const startDate = parseISO(form.date);
+        const endDate = parseISO(form.endDate);
+        if (endDate < startDate) {
+          return;
+        }
+        const newEntries: Entry[] = [];
+        for (let cursor = new Date(startDate); cursor <= endDate; cursor = addDays(cursor, 1)) {
+          if (form.skipWeekends && isWeekend(cursor)) {
+            continue;
+          }
+          newEntries.push(buildEntry(uid(), iso(cursor), []));
+        }
+        if (newEntries.length === 0) {
+          return;
+        }
+        setState((current) => ({
+          ...current,
+          entries: [...current.entries, ...newEntries],
+          modal: null,
+        }));
+        return;
+      }
+
+      const id = form.id ?? uid();
+      const savedEntry = buildEntry(id, form.date, form.attachments);
       setState((current) => ({
         ...current,
         entries: current.entries.some((entry) => entry.id === id)
@@ -1139,7 +1026,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           entries: demoData.entries,
           page: 'track',
           modal: null,
-          drag: null,
           syncStatus: 'idle',
           selectedCustomerId: null,
           selectedProjectId: null,
@@ -1162,7 +1048,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         entries: emptyData.entries,
         page: 'track',
         modal: null,
-        drag: null,
         syncStatus: 'idle',
         selectedCustomerId: null,
         selectedProjectId: null,
@@ -1190,7 +1075,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         entries: data.entries,
         demoMode: nextDemoMode,
         modal: null,
-        drag: null,
         syncStatus: 'idle',
         selectedCustomerId: null,
         selectedProjectId: null,
@@ -1225,91 +1109,22 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     setState((current) => ({ ...current, page: 'earnings', earningsFilter: seed }));
   }, []);
 
-  const setView = useCallback((view: View) => {
-    setState((current) => ({ ...current, view }));
-  }, []);
-
   const setRefISO = useCallback((refISO: string) => {
     setState((current) => ({ ...current, refISO }));
+    setHeatmapAnchorISO(null);
   }, []);
 
-  const onColPointerDown = useCallback((dayISO: string, event: PointerEvent<Element>) => {
-    if (event.pointerType === 'mouse' && event.button !== 0) {
-      return;
-    }
-
-    // Touch drag-to-create is disabled: on mobile, hours are added via the
-    // floating action button only. Ignoring touch here also keeps the
-    // browser's native touch handling (e.g. swiping between days) working,
-    // since we don't preventDefault()/capture the pointer.
-    if (event.pointerType === 'touch') {
-      return;
-    }
-
-    event.preventDefault();
-    rectRef.current = event.currentTarget.getBoundingClientRect();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const minutes = yToMin(event.clientY, rectRef.current);
-    draggingRef.current = true;
-    setState((current) => ({ ...current, drag: { iso: dayISO, a: minutes, b: minutes } }));
+  const shiftHeatmapAnchor = useCallback((months: number) => {
+    setHeatmapAnchorISO((current) => {
+      const base = current ? parseISO(current) : parseISO(stateRef.current.refISO);
+      return iso(addMonths(base, months));
+    });
   }, []);
 
-  useEffect(() => {
-    const handleMove = (event: globalThis.PointerEvent): void => {
-      if (!draggingRef.current) {
-        return;
-      }
-
-      const minutes = yToMin(event.clientY, rectRef.current);
-      setState((current) => (
-        current.drag ? { ...current, drag: { ...current.drag, b: minutes } } : current
-      ));
-    };
-
-    const handleUp = (_event?: globalThis.PointerEvent): void => {
-      if (!draggingRef.current) {
-        return;
-      }
-
-      draggingRef.current = false;
-      const drag = stateRef.current.drag;
-      setState((current) => ({ ...current, drag: null }));
-      if (!drag) {
-        return;
-      }
-
-      let start = Math.min(drag.a, drag.b);
-      let end = Math.max(drag.a, drag.b);
-      if (end - start < 15) {
-        end = start + 60;
-        if (end > END * 60) {
-          end = END * 60;
-          start = end - 60;
-        }
-      }
-
-      const kind = stateRef.current.projects[0] ? 'project' : 'service';
-      openEntry({
-        kind,
-        projectId: kind === 'project' ? (stateRef.current.projects[0]?.id || '') : null,
-        serviceId: kind === 'service' ? (stateRef.current.services[0]?.id || '') : null,
-        customerId: kind === 'service' ? (stateRef.current.customers[0]?.id || '') : null,
-        date: drag.iso,
-        start,
-        end,
-        comment: '',
-      }, true);
-    };
-
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleUp);
-    return () => {
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleUp);
-    };
-  }, [openEntry]);
+  const onHeatmapPrevMonth = useCallback(() => shiftHeatmapAnchor(-1), [shiftHeatmapAnchor]);
+  const onHeatmapNextMonth = useCallback(() => shiftHeatmapAnchor(1), [shiftHeatmapAnchor]);
+  const onHeatmapPrevYear = useCallback(() => shiftHeatmapAnchor(-12), [shiftHeatmapAnchor]);
+  const onHeatmapNextYear = useCallback(() => shiftHeatmapAnchor(12), [shiftHeatmapAnchor]);
 
   useEffect(() => {
     const data = {
@@ -1403,7 +1218,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       return service ? rateForDate(service.rates, entry.date) : 0;
     }
     const project = projById[entry.projectId ?? ''];
-    return project ? (((entry.end - entry.start) / 60) / hpd) * rateForDate(project.rates, entry.date) : 0;
+    return project ? (((entry.minutes) / 60) / hpd) * rateForDate(project.rates, entry.date) : 0;
   }, [hpd, projById, serviceById]);
 
   const isCustomerDetail = state.page === 'customerDetail';
@@ -1439,36 +1254,20 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     isExport: state.page === 'export',
     isEarnings: state.page === 'earnings',
     navSection,
-    isWeek: state.view === 'week',
-    isDay: state.view === 'day',
-    isMonth: state.view === 'month',
+    heatmapAnchor: heatmapAnchorISO ? parseISO(heatmapAnchorISO) : ref,
   };
 
   const sidebarProps = useMemo<SidebarProps>(() => {
-    let periodLabel: string;
-    let periodEntries: Entry[];
-
-    if (ctx.isDay) {
-      periodLabel = 'Today';
-      periodEntries = ctx.S.entries.filter((entry) => entry.date === ctx.S.refISO);
-    } else if (ctx.isMonth) {
-      periodLabel = 'This month';
-      periodEntries = ctx.S.entries.filter((entry) => {
-        const date = parseISO(entry.date);
-        return date.getFullYear() === ctx.ref.getFullYear() && date.getMonth() === ctx.ref.getMonth();
-      });
-    } else {
-      periodLabel = 'This week';
-      const weekStart = startOfWeek(ctx.ref);
-      const dayCount = ctx.showWeekend ? 7 : 5;
-      const weekISOs = new Set<string>();
-      for (let day = 0; day < dayCount; day += 1) {
-        weekISOs.add(iso(addDays(weekStart, day)));
-      }
-      periodEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
+    const periodLabel = 'This week';
+    const weekStart = startOfWeek(ctx.ref);
+    const dayCount = ctx.showWeekend ? 7 : 5;
+    const weekISOs = new Set<string>();
+    for (let day = 0; day < dayCount; day += 1) {
+      weekISOs.add(iso(addDays(weekStart, day)));
     }
+    const periodEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
 
-    const periodMinutes = periodEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const periodMinutes = periodEntries.reduce((sum, entry) => sum + entry.minutes, 0);
     const periodEarn = periodEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const { label: syncLabel, color: syncColor } = getSyncStatusMeta(ctx.S.demoMode, ctx.S.syncStatus);
@@ -1513,24 +1312,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const weekStart = startOfWeek(ctx.ref);
     const weekEnd = addDays(weekStart, 6);
     const weekRange = `${fmtShortDate(weekStart)} – ${fmtShortDateYear(weekEnd)}`;
-    const monthLabel = fmtMonthYear(ctx.ref);
-    const dayFull = fmtFullDate(ctx.ref);
 
-    const todayRef = parseISO(ctx.todayISO);
-    const now = new Date();
-    const diffDays = Math.round((ctx.ref.getTime() - todayRef.getTime()) / 86400000);
     const diffWeeks = Math.round((weekStart.getTime() - startOfWeek(new Date()).getTime()) / (7 * 86400000));
-    const diffMonths = (ctx.ref.getFullYear() - now.getFullYear()) * 12 + (ctx.ref.getMonth() - now.getMonth());
 
-    const relDay = diffDays === 0
-      ? 'Today'
-      : diffDays === -1
-        ? 'Yesterday'
-        : diffDays === 1
-          ? 'Tomorrow'
-          : diffDays < 0
-            ? `${Math.abs(diffDays)} days ago`
-            : `${diffDays} days from now`;
     const relWeek = diffWeeks === 0
       ? 'This week'
       : diffWeeks === -1
@@ -1540,19 +1324,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           : diffWeeks < 0
             ? `${Math.abs(diffWeeks)} weeks ago`
             : `${diffWeeks} weeks from now`;
-    const relMonth = diffMonths === 0
-      ? 'This month'
-      : diffMonths === -1
-        ? 'Last month'
-        : diffMonths === 1
-          ? 'Next month'
-          : diffMonths < 0
-            ? `${Math.abs(diffMonths)} months ago`
-            : `${diffMonths} months from now`;
-
-    const dayEntries = ctx.S.entries.filter((entry) => entry.date === ctx.S.refISO);
-    const dayMinutes = dayEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
-    const dayEarn = dayEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const dayCount = ctx.showWeekend ? 7 : 5;
     const weekISOs = new Set<string>();
@@ -1560,29 +1331,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       weekISOs.add(iso(addDays(weekStart, day)));
     }
     const weekEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
-    const weekMinutes = weekEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const weekMinutes = weekEntries.reduce((sum, entry) => sum + entry.minutes, 0);
     const weekEarn = weekEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
-
-    const monthEntries = ctx.S.entries.filter((entry) => {
-      const date = parseISO(entry.date);
-      return date.getFullYear() === ctx.ref.getFullYear() && date.getMonth() === ctx.ref.getMonth();
-    });
-    const monthMinutes = monthEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
-    const monthEarn = monthEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     let headerTitle = 'Today';
     let headerSubtitle = '';
     if (ctx.isTrack) {
-      if (ctx.isDay) {
-        headerTitle = relDay;
-        headerSubtitle = `${dayFull}${dayMinutes > 0 ? ` · ${fmtH(dayMinutes)} · ${fmtEUR(dayEarn)}` : ''}`;
-      } else if (ctx.isWeek) {
-        headerTitle = relWeek;
-        headerSubtitle = `${weekRange}${weekMinutes > 0 ? ` · ${fmtH(weekMinutes)} · ${fmtEUR(weekEarn)}` : ''}`;
-      } else {
-        headerTitle = relMonth;
-        headerSubtitle = `${monthLabel}${monthMinutes > 0 ? ` · ${fmtH(monthMinutes)} · ${fmtEUR(monthEarn)}` : ''}`;
-      }
+      headerTitle = `${relWeek} · W${isoWeekNumber(weekStart)}`;
+      headerSubtitle = `${weekRange}${weekMinutes > 0 ? ` · ${fmtH(weekMinutes)} · ${fmtEUR(weekEarn)}` : ''}`;
     } else if (ctx.isProjects) {
       headerTitle = 'Projects';
       headerSubtitle = `${ctx.S.projects.length} active`;
@@ -1623,30 +1379,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       isProjects: ctx.isProjects,
       isServices: ctx.isServices,
       isCustomers: ctx.isCustomers,
-      tabDayStyle: tabStyle(ctx.isDay),
-      tabWeekStyle: tabStyle(ctx.isWeek),
-      tabMonthStyle: tabStyle(ctx.isMonth),
-      onTabDay: () => setView('day'),
-      onTabWeek: () => setView('week'),
-      onTabMonth: () => setView('month'),
       onPrev: () => {
         const date = parseISO(ctx.S.refISO);
-        const next = ctx.S.view === 'week'
-          ? addDays(date, -7)
-          : ctx.S.view === 'day'
-            ? addDays(date, -1)
-            : addMonths(date, -1);
-        setRefISO(iso(next));
+        setRefISO(iso(addDays(date, -7)));
       },
       onToday: () => setRefISO(ctx.todayISO),
       onNext: () => {
         const date = parseISO(ctx.S.refISO);
-        const next = ctx.S.view === 'week'
-          ? addDays(date, 7)
-          : ctx.S.view === 'day'
-            ? addDays(date, 1)
-            : addMonths(date, 1);
-        setRefISO(iso(next));
+        setRefISO(iso(addDays(date, 7)));
       },
       btnPrimary: {
         height: '44px',
@@ -1665,7 +1405,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onNewService: () => openServiceDetail(null),
       onNewCustomer: () => openCustomer(null),
     };
-  }, [ctx, openCustomer, openNewEntry, openProjectDetail, openServiceDetail, setRefISO, setView]);
+  }, [ctx, openCustomer, openNewEntry, openProjectDetail, openServiceDetail, setRefISO]);
 
   const settingsProps = useMemo<SettingsViewProps | null>(() => {
     if (!ctx.isSettings) {
@@ -1691,190 +1431,147 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     };
   }, [ctx, onToggleDemoMode, pushStateNow, resetData, setPage, signOut]);
 
-  const weekProps = useMemo<WeekViewProps | null>(() => {
-    if (!(ctx.isTrack && ctx.isWeek)) {
+  const trackProps = useMemo<TrackViewProps | null>(() => {
+    if (!ctx.isTrack) {
       return null;
     }
 
-    const { gutterStyle, hourRows, gridHeight } = buildGridShared();
     const weekStart = startOfWeek(ctx.ref);
     const dayCount = ctx.showWeekend ? 7 : 5;
-    const dowLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    const colBase = (dayISO: string): CSSProperties => ({
-      flex: '1',
-      position: 'relative',
-      height: `${gridHeight}px`,
-      borderLeft: '1px solid #f0f1f4',
-      cursor: 'crosshair',
-      // Touch input no longer drags to create entries (see onColPointerDown),
-      // so allow native touch panning/swiping instead of blocking it.
-      touchAction: 'pan-y',
-      backgroundColor: dayISO === ctx.todayISO ? '#fafbff' : 'transparent',
-      backgroundImage: `repeating-linear-gradient(to bottom, #eef0f3 0, #eef0f3 1px, transparent 1px, transparent ${ROW}px)`,
-      backgroundPosition: `0 ${PAD}px`,
-    });
+    const dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-    const weekDays: WeekDayVM[] = [];
+    const days: TrackDayVM[] = [];
     for (let index = 0; index < dayCount; index += 1) {
       const date = addDays(weekStart, index);
       const dayISO = iso(date);
       const isToday = dayISO === ctx.todayISO;
-      const overlay = dragOverlay(ctx.S.drag && ctx.S.drag.iso === dayISO ? ctx.S.drag : null, ctx.acc);
+      const dayEntries = ctx.S.entries.filter((entry) => entry.date === dayISO);
+      const dayMinutes = dayEntries.reduce((sum, entry) => sum + entry.minutes, 0);
 
-      weekDays.push({
+      const entries: DayListRowVM[] = dayEntries.map((entry) => ({
+        id: entry.id,
+        projectName: labelForEntry(entry, ctx.projById, ctx.serviceById, ctx.custById),
+        comment: entry.comment,
+        hoursLabel: fmtH(entry.minutes),
+        earnLabel: fmtEUR(ctx.entryEarn(entry)),
+        dotStyle: {
+          width: '10px',
+          height: '10px',
+          borderRadius: '3px',
+          background: colorForEntry(entry, ctx.projById, ctx.custById),
+          flexShrink: 0,
+          marginTop: '4px',
+        },
+        onClick: () => openEntry(entry, false),
+      }));
+
+      days.push({
         iso: dayISO,
-        dow: dowLabels[index],
+        dowLabel: dowLabels[index],
         dayNum: date.getDate(),
+        isToday,
         numStyle: isToday
           ? {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '29px',
-              height: '29px',
+              width: '26px',
+              height: '26px',
               borderRadius: '50%',
               background: ctx.acc,
               color: '#fff',
-              fontSize: '15px',
+              fontSize: '14px',
               fontWeight: 600,
             }
-          : { fontSize: '17px', fontWeight: 600, color: '#1a1c20', lineHeight: '29px' },
-        colStyle: colBase(dayISO),
-        entries: buildDayEntries(ctx.S.entries, ctx.projById, ctx.serviceById, ctx.custById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
-        drag: overlay ? overlay.style : null,
-        dragLabel: overlay ? overlay.label : '',
-        onPointerDown: (event) => onColPointerDown(dayISO, event),
-        onHeaderClick: () => setState((current) => ({ ...current, view: 'day', refISO: dayISO })),
+          : { fontSize: '15px', fontWeight: 600, color: '#1a1c20', lineHeight: '26px' },
+        totalHoursLabel: dayMinutes > 0 ? fmtH(dayMinutes) : '',
+        entries,
+        onAddEntry: () => openNewEntryForDate(dayISO),
       });
     }
 
-    return { weekDays, gutterStyle, hourRows };
-  }, [ctx, onColPointerDown, openEntry]);
+    const weekISOs = new Set(days.map((day) => day.iso));
+    const weekEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
+    const weekMinutes = weekEntries.reduce((sum, entry) => sum + entry.minutes, 0);
+    const weekEarn = weekEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
-  const dayProps = useMemo<DayViewProps | null>(() => {
-    if (!(ctx.isTrack && ctx.isDay)) {
-      return null;
+    // Read-only month heatmap. The displayed month defaults to the currently
+    // active week (ctx.ref) but can be browsed independently via its own
+    // prev/next month/year controls (ctx.heatmapAnchor); browsing the ledger
+    // itself (setRefISO) resets the heatmap back to following the ledger.
+    // Shading maps hours/day onto accent opacity, clamped so a normal full
+    // day reads as strongly shaded without single very-long days maxing out.
+    const minutesByDate = new Map<string, number>();
+    for (const entry of ctx.S.entries) {
+      minutesByDate.set(entry.date, (minutesByDate.get(entry.date) ?? 0) + entry.minutes);
     }
 
-    const { gutterStyle, hourRows, gridHeight } = buildGridShared();
-    const dayISO = ctx.S.refISO;
-    const overlay = dragOverlay(ctx.S.drag && ctx.S.drag.iso === dayISO ? ctx.S.drag : null, ctx.acc);
-    const dayEntries = ctx.S.entries.filter((entry) => entry.date === dayISO).sort((a, b) => a.start - b.start);
-    const dayMinutes = dayEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
-    const dayEarn = dayEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+    const monthRef = ctx.heatmapAnchor;
+    const monthIndex = monthRef.getMonth();
+    const gridStart = startOfWeek(new Date(monthRef.getFullYear(), monthIndex, 1, 12));
+    const shadeCap = ctx.hpd > 0 ? ctx.hpd * 1.25 : 1;
 
-    const list: DayListRowVM[] = dayEntries.map((entry) => ({
-      id: entry.id,
-      projectName: labelForEntry(entry, ctx.projById, ctx.serviceById, ctx.custById),
-      comment: entry.comment,
-      timeLabel: `${fmtMin(entry.start)}–${fmtMin(entry.end)} · ${fmtH(entry.end - entry.start)}`,
-      dotStyle: {
-        width: '10px',
-        height: '10px',
-        borderRadius: '3px',
-        background: colorForEntry(entry, ctx.projById, ctx.custById),
-        flexShrink: 0,
-        marginTop: '4px',
-      },
-      onClick: () => openEntry(entry, false),
-    }));
-
-    return {
-      dayData: {
-        colStyle: {
-          flex: '1',
-          position: 'relative',
-          height: `${gridHeight}px`,
-          cursor: 'crosshair',
-          touchAction: 'pan-y',
-          backgroundImage: `repeating-linear-gradient(to bottom, #eef0f3 0, #eef0f3 1px, transparent 1px, transparent ${ROW}px)`,
-          backgroundPosition: `0 ${PAD}px`,
-        },
-        entries: buildDayEntries(ctx.S.entries, ctx.projById, ctx.serviceById, ctx.custById, dayISO, openEntry as (entry: Entry, isNew: boolean) => void),
-        drag: overlay ? overlay.style : null,
-        dragLabel: overlay ? overlay.label : '',
-        onPointerDown: (event) => onColPointerDown(dayISO, event),
-        totalH: fmtH(dayMinutes),
-        totalDays: (dayMinutes / 60 / ctx.hpd).toFixed(1),
-        totalEarn: fmtEUR(dayEarn),
-        empty: dayEntries.length === 0,
-        list,
-      },
-      gutterStyle,
-      hourRows,
-      accent: ctx.acc,
-    };
-  }, [ctx, onColPointerDown, openEntry]);
-
-  const monthProps = useMemo<MonthViewProps | null>(() => {
-    if (!(ctx.isTrack && ctx.isMonth)) {
-      return null;
-    }
-
-    const first = new Date(ctx.ref.getFullYear(), ctx.ref.getMonth(), 1, 12);
-    const monthStart = startOfWeek(first);
-    const monthWeeks = [];
-
+    const heatmapWeeks: MonthHeatmapDayVM[][] = [];
     for (let week = 0; week < 6; week += 1) {
-      const days: MonthCellVM[] = [];
+      const row: MonthHeatmapDayVM[] = [];
       for (let day = 0; day < 7; day += 1) {
-        const date = addDays(monthStart, week * 7 + day);
-        const dayISO = iso(date);
-        const inMonth = date.getMonth() === ctx.ref.getMonth();
-        const isToday = dayISO === ctx.todayISO;
-        const entries = ctx.S.entries.filter((entry) => entry.date === dayISO);
-        const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
-        const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
-        const colors: string[] = [];
+        const date = addDays(gridStart, week * 7 + day);
+        const cellISO = iso(date);
+        const isCurrentMonth = date.getMonth() === monthIndex;
+        const isToday = cellISO === ctx.todayISO;
+        const cellMinutes = minutesByDate.get(cellISO) ?? 0;
+        const intensity = Math.min(cellMinutes / 60 / shadeCap, 1);
+        const background = cellMinutes > 0
+          ? hexToRgba(ctx.acc, 0.1 + intensity * 0.8)
+          : '#f6f7f9';
+        const textColor = cellMinutes > 0 && intensity > 0.55 ? '#ffffff' : '#3a3f48';
 
-        entries.forEach((entry) => {
-          const color = colorForEntry(entry, ctx.projById, ctx.custById);
-          if (!colors.includes(color)) {
-            colors.push(color);
-          }
-        });
-
-        days.push({
+        row.push({
+          iso: cellISO,
           dayNum: date.getDate(),
+          hoursLabel: cellMinutes > 0 ? fmtH(cellMinutes) : '',
+          isToday,
+          isCurrentMonth,
           style: {
-            flex: '1',
-            minWidth: 0,
-            height: '112px',
-            padding: '8px 9px',
-            borderLeft: '1px solid #f4f5f7',
-            cursor: 'pointer',
-            background: inMonth ? '#fff' : '#fafbfc',
+            minHeight: '40px',
+            borderRadius: '8px',
+            padding: '5px 6px',
             display: 'flex',
             flexDirection: 'column',
-            boxSizing: 'border-box',
+            justifyContent: 'space-between',
+            gap: '2px',
+            cursor: 'pointer',
+            background,
+            color: textColor,
+            border: isToday ? `1.5px solid ${ctx.acc}` : '1px solid #eef0f3',
+            opacity: isCurrentMonth ? 1 : 0.4,
           },
-          numStyle: isToday
-            ? {
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                background: ctx.acc,
-                color: '#fff',
-                fontSize: '12.5px',
-                fontWeight: 600,
-              }
-            : { fontSize: '13px', fontWeight: 500, color: inMonth ? '#3a3f48' : '#c4c8ce', lineHeight: '24px' },
-          hasEntries: minutes > 0,
-          hours: fmtH(minutes),
-          earn: fmtEUR(earn),
-          dots: colors.slice(0, 4).map((color) => ({ style: { width: '6px', height: '6px', borderRadius: '50%', background: color } })),
-          onClick: () => setState((current) => ({ ...current, view: 'day', refISO: dayISO })),
+          onClick: () => setRefISO(cellISO),
         });
       }
-
-      monthWeeks.push({ days });
+      heatmapWeeks.push(row);
     }
 
-    return { monthWeeks, monthDowLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] };
-  }, [ctx]);
+    return {
+      days,
+      weekSummary: {
+        weekLabel: `Week ${isoWeekNumber(weekStart)}`,
+        hoursLabel: fmtH(weekMinutes),
+        daysLabel: (weekMinutes / 60 / ctx.hpd).toFixed(1),
+        earnLabel: fmtEUR(weekEarn),
+      },
+      monthHeatmap: {
+        monthLabel: fmtMonthYear(monthRef),
+        weeks: heatmapWeeks,
+        dowLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        onPrevMonth: onHeatmapPrevMonth,
+        onNextMonth: onHeatmapNextMonth,
+        onPrevYear: onHeatmapPrevYear,
+        onNextYear: onHeatmapNextYear,
+      },
+      accent: ctx.acc,
+    };
+  }, [ctx, openEntry, openNewEntryForDate, setRefISO, onHeatmapPrevMonth, onHeatmapNextMonth, onHeatmapPrevYear, onHeatmapNextYear]);
 
   const projectsProps = useMemo<ProjectsViewProps | null>(() => {
     if (!ctx.isProjects) {
@@ -1883,7 +1580,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
 
     const projRows = ctx.S.projects.map((project) => {
       const entries = ctx.S.entries.filter((entry) => entry.kind === 'project' && entry.projectId === project.id);
-      const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+      const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
       const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
       return {
         id: project.id,
@@ -1907,7 +1604,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
 
     const serviceRows = ctx.S.services.map((service, index) => {
       const entries = ctx.S.entries.filter((entry) => entry.kind === 'service' && entry.serviceId === service.id);
-      const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+      const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
       const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
       return {
         id: service.id,
@@ -1935,7 +1632,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         (entry) => (entry.kind === 'project' && projectIds.includes(entry.projectId ?? ''))
           || ((entry.kind === 'service' || entry.kind === 'customer') && entry.customerId === customer.id),
       );
-      const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+      const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
       const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
       return {
         id: customer.id,
@@ -1980,6 +1677,19 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       ? (modal.isNew ? 'Log hours' : 'Edit entry')
       : (modal.isNew ? 'New customer' : 'Edit customer');
     const saveLabel = modal.isNew ? 'Add' : 'Save';
+
+    const presetValues = [0.5, 1, 2, 4, ctx.hpd];
+    const seenPresets = new Set<string>();
+    const hoursPresets = presetValues
+      .filter((value) => {
+        const key = String(value);
+        if (seenPresets.has(key)) {
+          return false;
+        }
+        seenPresets.add(key);
+        return true;
+      })
+      .map((value) => ({ label: String(value), value: String(value) }));
 
     const inputStyle: CSSProperties = {
       width: '100%',
@@ -2048,8 +1758,12 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onFormEntryCustomer: (event: ChangeEvent<HTMLSelectElement>) => updateForm('customerId', event.target.value),
       onFormAmount: (event: ChangeEvent<HTMLInputElement>) => updateForm('amount', event.target.value),
       onFormDate: (event: ChangeEvent<HTMLInputElement>) => updateForm('date', event.target.value),
-      onFormStart: (event: ChangeEvent<HTMLInputElement>) => updateForm('start', event.target.value),
-      onFormEnd: (event: ChangeEvent<HTMLInputElement>) => updateForm('end', event.target.value),
+      onFormHours: (event: ChangeEvent<HTMLInputElement>) => updateForm('hours', event.target.value),
+      hoursPresets,
+      onPresetHours: (value: string) => updateForm('hours', value),
+      onToggleRepeat: (repeat: boolean) => updateForm('repeat', repeat),
+      onFormEndDate: (event: ChangeEvent<HTMLInputElement>) => updateForm('endDate', event.target.value),
+      onToggleSkipWeekends: (skip: boolean) => updateForm('skipWeekends', skip),
       onFormComment: (event: ChangeEvent<HTMLTextAreaElement>) => updateForm('comment', event.target.value),
       onFormName: (event: ChangeEvent<HTMLInputElement>) => updateForm('name', event.target.value),
       onSave: saveModal,
@@ -2076,12 +1790,12 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       (entry) => (entry.kind === 'project' && projectIds.includes(entry.projectId ?? ''))
         || ((entry.kind === 'service' || entry.kind === 'customer') && entry.customerId === customerId),
     );
-    const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
     const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const projectRows: CustomerDetailProjectRowVM[] = projects.map((project) => {
       const projectEntries = ctx.S.entries.filter((entry) => entry.kind === 'project' && entry.projectId === project.id);
-      const projectMinutes = projectEntries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+      const projectMinutes = projectEntries.reduce((sum, entry) => sum + entry.minutes, 0);
       const projectEarn = projectEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
       return {
         id: project.id,
@@ -2175,7 +1889,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const draft = ctx.S.projectDraft;
     const isNew = !draft.id;
     const entries = draft.id ? ctx.S.entries.filter((entry) => entry.kind === 'project' && entry.projectId === draft.id) : [];
-    const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
     const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const rateRows: RatePeriodRowVM[] = sortRates(draft.rates).map((rate) => ({
@@ -2260,7 +1974,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const draft = ctx.S.serviceDraft;
     const isNew = !draft.id;
     const entries = draft.id ? ctx.S.entries.filter((entry) => entry.kind === 'service' && entry.serviceId === draft.id) : [];
-    const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+    const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
     const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     const rateRows: RatePeriodRowVM[] = sortRates(draft.rates).map((rate) => ({
@@ -2353,9 +2067,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   }, [ctx, setPage]);
 
   return {
-    showWeek: ctx.isTrack && ctx.isWeek,
-    showDay: ctx.isTrack && ctx.isDay,
-    showMonth: ctx.isTrack && ctx.isMonth,
+    showTrack: ctx.isTrack,
     showProjects: ctx.isProjects,
     showServices: ctx.isServices,
     showCustomers: ctx.isCustomers,
@@ -2368,9 +2080,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     modalOpen: Boolean(ctx.S.modal),
     sidebarProps,
     headerProps,
-    weekProps,
-    dayProps,
-    monthProps,
+    trackProps,
     projectsProps,
     servicesProps,
     customersProps,
@@ -2383,3 +2093,4 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     modalProps,
   };
 }
+

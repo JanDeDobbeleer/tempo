@@ -22,8 +22,12 @@ const Modal: FC<ModalProps> = ({
   onFormEntryCustomer,
   onFormAmount,
   onFormDate,
-  onFormStart,
-  onFormEnd,
+  onFormHours,
+  hoursPresets,
+  onPresetHours,
+  onToggleRepeat,
+  onFormEndDate,
+  onToggleSkipWeekends,
   onFormComment,
   onFormName,
   onSave,
@@ -187,24 +191,101 @@ const Modal: FC<ModalProps> = ({
               </div>
 
               <div>
-                <label style={labelStyle}>Date</label>
-                <input type="date" style={inputStyle} value={entryForm.date} onChange={onFormDate} />
+                <label style={labelStyle}>When</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button
+                    type="button"
+                    style={{
+                      ...inputStyle,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: !entryForm.repeat ? '#1a1c20' : '#fff',
+                      color: !entryForm.repeat ? '#fff' : '#1a1c20',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => onToggleRepeat(false)}
+                  >
+                    Single day
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...inputStyle,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: entryForm.repeat ? '#1a1c20' : '#fff',
+                      color: entryForm.repeat ? '#fff' : '#1a1c20',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => onToggleRepeat(true)}
+                  >
+                    Repeat
+                  </button>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Start</label>
-                  <input
-                    type="time"
-                    step="900"
-                    style={inputStyle}
-                    value={entryForm.start}
-                    onChange={onFormStart}
-                  />
+              {entryForm.repeat ? (
+                <>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>From</label>
+                      <input type="date" style={inputStyle} value={entryForm.date} onChange={onFormDate} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>To</label>
+                      <input type="date" style={inputStyle} value={entryForm.endDate} onChange={onFormEndDate} />
+                    </div>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#3a3f48', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={entryForm.skipWeekends}
+                      onChange={(event) => onToggleSkipWeekends(event.target.checked)}
+                    />
+                    Skip weekends
+                  </label>
+                </>
+              ) : (
+                <div>
+                  <label style={labelStyle}>Date</label>
+                  <input type="date" style={inputStyle} value={entryForm.date} onChange={onFormDate} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>End</label>
-                  <input type="time" step="900" style={inputStyle} value={entryForm.end} onChange={onFormEnd} />
+              )}
+
+              <div>
+                <label style={labelStyle}>Hours</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.25"
+                  min="0.25"
+                  style={inputStyle}
+                  placeholder="e.g. 2.5"
+                  value={entryForm.hours}
+                  onChange={onFormHours}
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                  {hoursPresets.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => onPresetHours(preset.value)}
+                      style={{
+                        padding: '5px 12px',
+                        borderRadius: '999px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        border: '1px solid #d7dadf',
+                        background: entryForm.hours === preset.value ? '#1a1c20' : '#fff',
+                        color: entryForm.hours === preset.value ? '#fff' : '#3a3f48',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -219,45 +300,47 @@ const Modal: FC<ModalProps> = ({
                 />
               </div>
 
-              <div>
-                <label style={labelStyle}>Attachments</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {attachments.map((attachment) => (
-                    <div
-                      key={attachment.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '10px',
-                        padding: '8px 10px',
-                        border: '1px solid #e2e4e8',
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={attachment.onDownload}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: '#1a1c20', flex: 1, padding: 0 }}
+              {!entryForm.repeat && (
+                <div>
+                  <label style={labelStyle}>Attachments</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {attachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          padding: '8px 10px',
+                          border: '1px solid #e2e4e8',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                        }}
                       >
-                        {attachment.label}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={attachment.onDelete}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#dc2626', fontSize: '12px', padding: 0 }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                        <button
+                          type="button"
+                          onClick={attachment.onDownload}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: '#1a1c20', flex: 1, padding: 0 }}
+                        >
+                          {attachment.label}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={attachment.onDelete}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#dc2626', fontSize: '12px', padding: 0 }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
 
-                  <input type="file" multiple onChange={onAddAttachments} disabled={attachmentUploading} />
-                  {attachmentUploading && <div style={{ fontSize: '12px', color: '#9ca3af' }}>Uploading…</div>}
-                  {attachmentError && <div style={{ fontSize: '12px', color: '#dc2626' }}>{attachmentError}</div>}
+                    <input type="file" multiple onChange={onAddAttachments} disabled={attachmentUploading} />
+                    {attachmentUploading && <div style={{ fontSize: '12px', color: '#9ca3af' }}>Uploading…</div>}
+                    {attachmentError && <div style={{ fontSize: '12px', color: '#dc2626' }}>{attachmentError}</div>}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
 

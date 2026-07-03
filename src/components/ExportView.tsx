@@ -111,7 +111,7 @@ const ExportView: FC<ExportViewProps> = ({ customers, projects, services, entrie
       .sort((a, b) => a.entry.date.localeCompare(b.entry.date));
   }, [customerById, entries, fromISO, projectById, projectsForScope, scopeId, scopeType, serviceById, toISO]);
 
-  const totalMinutes = matchingEntries.reduce((sum, item) => sum + (item.entry.end - item.entry.start), 0);
+  const totalMinutes = matchingEntries.reduce((sum, item) => sum + item.entry.minutes, 0);
   const totalAmount = matchingEntries.reduce(
     (sum, item) => sum + entryEarnValue(item.entry, item.project ?? undefined, item.service ?? undefined, hoursPerDay),
     0,

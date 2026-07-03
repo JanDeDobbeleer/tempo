@@ -17,14 +17,27 @@ function isPersistedData(value: unknown): value is PersistedData {
 }
 
 function normalizeEntry(entry: Entry): Entry {
-  return {
+  // Entries persisted before the duration-logging rework only had clock-time
+  // `start`/`end` (minutes-from-midnight) and no `minutes` field. Derive it
+  // here so stale local caches (and the production blob, until its one-time
+  // migration script runs) don't produce NaN totals.
+  const legacy = entry as Entry & { start?: number; end?: number };
+  const minutes = typeof entry.minutes === 'number'
+    ? entry.minutes
+    : (typeof legacy.start === 'number' && typeof legacy.end === 'number' ? legacy.end - legacy.start : 0);
+
+  const normalized: Entry & { start?: number; end?: number } = {
     ...entry,
     kind: entry.kind ?? 'project',
     projectId: entry.projectId ?? null,
     serviceId: entry.serviceId ?? null,
     customerId: entry.customerId ?? null,
     amount: entry.amount ?? null,
+    minutes,
   };
+  delete normalized.start;
+  delete normalized.end;
+  return normalized;
 }
 
 function normalizePersistedData(data: PersistedData): PersistedData {

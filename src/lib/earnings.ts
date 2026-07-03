@@ -45,7 +45,7 @@ export function entryEarnValue(
   if (!project) {
     return 0;
   }
-  return (((entry.end - entry.start) / 60) / hoursPerDay) * rateForDate(project.rates, entry.date);
+  return ((entry.minutes / 60) / hoursPerDay) * rateForDate(project.rates, entry.date);
 }
 
 // AND-composed filter: inclusive date range, plus optional customer/project.
@@ -78,7 +78,7 @@ export function summarize(
   serviceById: Record<string, Service>,
   hoursPerDay: number,
 ): EarningsSummary {
-  const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+  const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
   const earn = entries.reduce(
     (sum, entry) => sum + entryEarnValue(entry, projById[entry.projectId ?? ''], serviceById[entry.serviceId ?? ''], hoursPerDay),
     0,
@@ -140,7 +140,7 @@ export function aggregateBy(
     const color = customer?.color ?? '#9ca3af';
 
     const existing = buckets.get(id);
-    const minutes = entry.end - entry.start;
+    const minutes = entry.minutes;
     const earn = entryEarnValue(entry, project, service, hoursPerDay);
 
     if (existing) {
