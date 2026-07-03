@@ -211,8 +211,11 @@ function createDemoSeed(): PersistedData {
     { id: 'p5', name: 'Logistics Portal', customerId: 'c3', rates: seedRate('r5', 600) },
   ];
 
-  const weekStart = startOfWeek(new Date());
-  const dayISO = (offset: number): string => iso(addDays(weekStart, offset));
+  // Seed entries for the current week and the previous three weeks so the
+  // month view is populated regardless of what day of the month it is.
+  const thisWeek = startOfWeek(new Date());
+  const d = (weekOffset: number, dayOffset: number): string =>
+    iso(addDays(addDays(thisWeek, weekOffset * 7), dayOffset));
 
   return {
     customers,
@@ -222,23 +225,54 @@ function createDemoSeed(): PersistedData {
       { id: 's2', name: 'Training', rates: seedRate('sr2', 900) },
     ],
     entries: [
-      makeProjectEntry('e1', dayISO(0), 'p1', 210, 'Wireframe review & IA'),
-      makeProjectEntry('e2', dayISO(0), 'p3', 150, 'Logo exploration'),
-      makeProjectEntry('e3', dayISO(1), 'p2', 150, 'Onboarding flow'),
-      makeProjectEntry('e4', dayISO(1), 'p4', 210, 'Charts components'),
-      makeProjectEntry('e5', dayISO(2), 'p1', 240, 'Homepage build'),
-      makeProjectEntry('e6', dayISO(2), 'p5', 120, 'API field mapping'),
-      { id: 'e7', kind: 'service', date: dayISO(3), projectId: null, serviceId: 's1', customerId: 'c2', amount: null, minutes: 120, comment: 'Workshop facilitation', attachments: [] },
-      makeProjectEntry('e8', dayISO(3), 'p2', 240, 'Push notifications'),
-      makeProjectEntry('e9', dayISO(4), 'p1', 150, 'QA & polish'),
-      { id: 'e10', kind: 'service', date: dayISO(4), projectId: null, serviceId: 's2', customerId: 'c1', amount: null, minutes: 150, comment: 'Team training', attachments: [] },
+      // Current week (Mon–Fri)
+      makeProjectEntry('e1',  d(0, 0), 'p1', 210, 'Wireframe review & IA'),
+      makeProjectEntry('e2',  d(0, 0), 'p3', 150, 'Logo exploration'),
+      makeProjectEntry('e3',  d(0, 1), 'p2', 150, 'Onboarding flow'),
+      makeProjectEntry('e4',  d(0, 1), 'p4', 210, 'Charts components'),
+      makeProjectEntry('e5',  d(0, 2), 'p1', 240, 'Homepage build'),
+      makeProjectEntry('e6',  d(0, 2), 'p5', 120, 'API field mapping'),
+      { id: 'e7',  kind: 'service', date: d(0, 3), projectId: null, serviceId: 's1', customerId: 'c2', amount: null, minutes: 120, comment: 'Workshop facilitation', attachments: [] },
+      makeProjectEntry('e8',  d(0, 3), 'p2', 240, 'Push notifications'),
+      makeProjectEntry('e9',  d(0, 4), 'p1', 150, 'QA & polish'),
+      { id: 'e10', kind: 'service', date: d(0, 4), projectId: null, serviceId: 's2', customerId: 'c1', amount: null, minutes: 150, comment: 'Team training', attachments: [] },
+      // Previous week (Mon–Fri)
+      makeProjectEntry('e11', d(-1, 0), 'p3', 240, 'Typography & colour tokens'),
+      makeProjectEntry('e12', d(-1, 1), 'p4', 210, 'Axis labels & tooltips'),
+      makeProjectEntry('e13', d(-1, 1), 'p1', 150, 'Responsive nav'),
+      makeProjectEntry('e14', d(-1, 2), 'p2', 240, 'Deep-link routing'),
+      makeProjectEntry('e15', d(-1, 3), 'p5', 180, 'Driver assignment UI'),
+      makeProjectEntry('e16', d(-1, 4), 'p3', 120, 'Icon set review'),
+      { id: 'e17', kind: 'service', date: d(-1, 4), projectId: null, serviceId: 's1', customerId: 'c3', amount: null, minutes: 120, comment: 'Process workshop', attachments: [] },
+      // Two weeks ago (Mon–Fri)
+      makeProjectEntry('e18', d(-2, 0), 'p1', 270, 'Component library setup'),
+      makeProjectEntry('e19', d(-2, 1), 'p4', 180, 'KPI card designs'),
+      makeProjectEntry('e20', d(-2, 2), 'p2', 210, 'Auth & permissions'),
+      makeProjectEntry('e21', d(-2, 3), 'p3', 150, 'Print style guide'),
+      makeProjectEntry('e22', d(-2, 4), 'p5', 240, 'Route optimisation spec'),
+      // Three weeks ago (Mon–Fri)
+      makeProjectEntry('e23', d(-3, 0), 'p2', 180, 'User research synthesis'),
+      makeProjectEntry('e24', d(-3, 1), 'p1', 210, 'Hero section design'),
+      makeProjectEntry('e25', d(-3, 2), 'p4', 150, 'Filter & search UI'),
+      makeProjectEntry('e26', d(-3, 3), 'p5', 120, 'API contract review'),
+      { id: 'e27', kind: 'service', date: d(-3, 4), projectId: null, serviceId: 's2', customerId: 'c2', amount: null, minutes: 150, comment: 'Stakeholder training', attachments: [] },
     ],
   };
 }
 
+// Demo data is considered stale when all its entries are older than 4 weeks.
+// In that case the seed is regenerated so the Track calendar never looks empty.
+function isDemoDataFresh(data: PersistedData): boolean {
+  if (data.entries.length === 0) {
+    return false;
+  }
+  const cutoffISO = iso(addDays(new Date(), -28));
+  return data.entries.some((entry) => entry.date >= cutoffISO);
+}
+
 function loadOrCreateDemoData(): PersistedData {
   const saved = store.loadDemoData();
-  if (saved) {
+  if (saved && isDemoDataFresh(saved)) {
     return saved;
   }
 
