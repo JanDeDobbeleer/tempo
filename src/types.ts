@@ -49,10 +49,13 @@ export interface AttachmentRef {
 export interface Entry {
   id: string;
   date: string;        // ISO yyyy-mm-dd
-  kind: 'project' | 'service';
+  kind: 'project' | 'service' | 'customer';
   projectId: string | null;
   serviceId: string | null;
   customerId: string | null;
+  // Flat fee for a 'customer' entry, tied only to that specific entry (no
+  // rate table, no proration). Null for 'project'/'service' entries.
+  amount: number | null;
   start: number;        // minutes from midnight
   end: number;          // minutes from midnight
   comment: string;
@@ -67,10 +70,11 @@ export type ModalType = 'entry' | 'customer';
 
 export interface EntryForm {
   id: string | null;
-  kind: 'project' | 'service';
+  kind: 'project' | 'service' | 'customer';
   projectId: string;
   serviceId: string;
   customerId: string;
+  amount: string;  // flat fee for 'customer' kind, as text input
   date: string;
   start: string;  // "HH:MM"
   end: string;    // "HH:MM"
@@ -360,10 +364,11 @@ export interface ModalProps {
   textareaStyle: CSSProperties;
   labelStyle: CSSProperties;
   btnPrimaryLg: CSSProperties;
-  onFormKind: (kind: 'project' | 'service') => void;
+  onFormKind: (kind: 'project' | 'service' | 'customer') => void;
   onFormProject: (e: ChangeEvent<HTMLSelectElement>) => void;
   onFormService: (e: ChangeEvent<HTMLSelectElement>) => void;
   onFormEntryCustomer: (e: ChangeEvent<HTMLSelectElement>) => void;
+  onFormAmount: (e: ChangeEvent<HTMLInputElement>) => void;
   onFormDate: (e: ChangeEvent<HTMLInputElement>) => void;
   onFormStart: (e: ChangeEvent<HTMLInputElement>) => void;
   onFormEnd: (e: ChangeEvent<HTMLInputElement>) => void;

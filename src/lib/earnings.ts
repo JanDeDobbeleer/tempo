@@ -36,6 +36,9 @@ export function entryEarnValue(
   service: Service | undefined,
   hoursPerDay: number,
 ): number {
+  if (entry.kind === 'customer') {
+    return entry.amount ?? 0;
+  }
   if (entry.kind === 'service') {
     return service ? rateForDate(service.rates, entry.date) : 0;
   }
@@ -60,7 +63,7 @@ export function filterEntries(entries: Entry[], projects: Project[], _services: 
       return false;
     }
     if (filter.customerId) {
-      const customerId = entry.kind === 'service' ? entry.customerId : projById[entry.projectId ?? '']?.customerId;
+      const customerId = entry.kind === 'project' ? projById[entry.projectId ?? '']?.customerId : entry.customerId;
       if (customerId !== filter.customerId) {
         return false;
       }
@@ -118,13 +121,22 @@ export function aggregateBy(
   entries.forEach((entry) => {
     const project = projById[entry.projectId ?? ''];
     const service = serviceById[entry.serviceId ?? ''];
-    const customer = custById[entry.kind === 'service' ? (entry.customerId ?? '') : (project?.customerId ?? '')];
+    const entryCustomerId = entry.kind === 'project' ? project?.customerId : (entry.customerId ?? undefined);
+    const customer = custById[entryCustomerId ?? ''];
     const id = groupBy === 'customer'
       ? (customer?.id ?? (entry.customerId ?? entry.projectId ?? entry.serviceId ?? entry.id))
-      : (entry.kind === 'service' ? `service:${entry.serviceId ?? entry.id}` : (entry.projectId ?? entry.id));
+      : (entry.kind === 'service'
+          ? `service:${entry.serviceId ?? entry.id}`
+          : entry.kind === 'customer'
+            ? `customer-fee:${entry.customerId ?? entry.id}`
+            : (entry.projectId ?? entry.id));
     const name = groupBy === 'customer'
       ? (customer?.name ?? 'Unknown')
-      : (entry.kind === 'service' ? (service?.name ?? 'Unknown service') : (project?.name ?? 'Unknown'));
+      : (entry.kind === 'service'
+          ? (service?.name ?? 'Unknown service')
+          : entry.kind === 'customer'
+            ? (customer?.name ?? 'Unknown customer')
+            : (project?.name ?? 'Unknown'));
     const color = customer?.color ?? '#9ca3af';
 
     const existing = buckets.get(id);

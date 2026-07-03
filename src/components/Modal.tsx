@@ -20,6 +20,7 @@ const Modal: FC<ModalProps> = ({
   onFormProject,
   onFormService,
   onFormEntryCustomer,
+  onFormAmount,
   onFormDate,
   onFormStart,
   onFormEnd,
@@ -73,7 +74,7 @@ const Modal: FC<ModalProps> = ({
             <>
               <div>
                 <label style={labelStyle}>Type</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                   <button
                     type="button"
                     style={{
@@ -104,6 +105,21 @@ const Modal: FC<ModalProps> = ({
                   >
                     Service
                   </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...inputStyle,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: entryForm.kind === 'customer' ? '#1a1c20' : '#fff',
+                      color: entryForm.kind === 'customer' ? '#fff' : '#1a1c20',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => onFormKind('customer')}
+                  >
+                    Customer
+                  </button>
                 </div>
               </div>
 
@@ -119,7 +135,7 @@ const Modal: FC<ModalProps> = ({
                       ))}
                     </select>
                   </>
-                ) : (
+                ) : entryForm.kind === 'service' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div>
                       <label style={labelStyle}>Customer</label>
@@ -140,6 +156,31 @@ const Modal: FC<ModalProps> = ({
                           </option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={labelStyle}>Customer</label>
+                      <select style={inputStyle} value={entryForm.customerId} onChange={onFormEntryCustomer}>
+                        {custOptsForEntry.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Amount (€)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        style={inputStyle}
+                        placeholder="e.g. 1200"
+                        value={entryForm.amount}
+                        onChange={onFormAmount}
+                      />
                     </div>
                   </div>
                 )}

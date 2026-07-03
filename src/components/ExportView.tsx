@@ -95,14 +95,16 @@ const ExportView: FC<ExportViewProps> = ({ customers, projects, services, entrie
         if (scopeType === 'project') {
           return entry.kind === 'project' && projectIds.has(entry.projectId ?? '');
         }
-        return (entry.kind === 'project' && projectIds.has(entry.projectId ?? '')) || (entry.kind === 'service' && entry.customerId === scopeId);
+        return (entry.kind === 'project' && projectIds.has(entry.projectId ?? ''))
+          || (entry.kind === 'service' && entry.customerId === scopeId)
+          || (entry.kind === 'customer' && entry.customerId === scopeId);
       })
       .map((entry) => {
         const project = entry.kind === 'project' ? (projectById.get(entry.projectId ?? '') ?? null) : null;
         const service = entry.kind === 'service' ? (serviceById.get(entry.serviceId ?? '') ?? null) : null;
-        const customer = entry.kind === 'service'
-          ? customerById.get(entry.customerId ?? '')
-          : (project ? customerById.get(project.customerId) : undefined);
+        const customer = entry.kind === 'project'
+          ? (project ? customerById.get(project.customerId) : undefined)
+          : customerById.get(entry.customerId ?? '');
         return customer ? { entry, project, service, customer } : null;
       })
       .filter((item): item is TimesheetExportEntry => item !== null)

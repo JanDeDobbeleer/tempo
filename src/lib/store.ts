@@ -23,6 +23,7 @@ function normalizeEntry(entry: Entry): Entry {
     projectId: entry.projectId ?? null,
     serviceId: entry.serviceId ?? null,
     customerId: entry.customerId ?? null,
+    amount: entry.amount ?? null,
   };
 }
 

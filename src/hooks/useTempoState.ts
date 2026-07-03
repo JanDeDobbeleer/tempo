@@ -78,6 +78,9 @@ function labelForEntry(
     const customerName = custById[entry.customerId ?? '']?.name || '—';
     return `${serviceName} — ${customerName}`;
   }
+  if (entry.kind === 'customer') {
+    return custById[entry.customerId ?? '']?.name || '—';
+  }
   return projById[entry.projectId ?? '']?.name || '—';
 }
 
@@ -86,7 +89,7 @@ function colorForEntry(
   projById: Record<string, Project>,
   custById: Record<string, Customer>,
 ): string {
-  return entry.kind === 'service'
+  return entry.kind === 'service' || entry.kind === 'customer'
     ? colorForServiceEntry(entry, custById)
     : colorForProject(projById[entry.projectId ?? ''], custById);
 }
@@ -114,7 +117,7 @@ type TempoState = PersistedData & {
 };
 
 type ProjectOrigin = { page: 'projects' } | { page: 'customerDetail'; customerId: string };
-type EntryDraft = Pick<Entry, 'kind' | 'projectId' | 'serviceId' | 'customerId' | 'date' | 'start' | 'end' | 'comment'> & Partial<Pick<Entry, 'id' | 'attachments'>>;
+type EntryDraft = Pick<Entry, 'kind' | 'projectId' | 'serviceId' | 'customerId' | 'date' | 'start' | 'end' | 'comment'> & Partial<Pick<Entry, 'id' | 'attachments' | 'amount'>>;
 
 type RenderCtx = {
   S: TempoState;
@@ -273,7 +276,7 @@ function makeProjectEntry(
   end: number,
   comment: string,
 ): Entry {
-  return { id, kind: 'project', date, projectId, serviceId: null, customerId: null, start, end, comment, attachments: [] };
+  return { id, kind: 'project', date, projectId, serviceId: null, customerId: null, amount: null, start, end, comment, attachments: [] };
 }
 
 function createDemoSeed(): PersistedData {
@@ -308,10 +311,10 @@ function createDemoSeed(): PersistedData {
       makeProjectEntry('e4', dayISO(1), 'p4', 840, 1050, 'Charts components'),
       makeProjectEntry('e5', dayISO(2), 'p1', 540, 780, 'Homepage build'),
       makeProjectEntry('e6', dayISO(2), 'p5', 870, 990, 'API field mapping'),
-      { id: 'e7', kind: 'service', date: dayISO(3), projectId: null, serviceId: 's1', customerId: 'c2', start: 600, end: 720, comment: 'Workshop facilitation', attachments: [] },
+      { id: 'e7', kind: 'service', date: dayISO(3), projectId: null, serviceId: 's1', customerId: 'c2', amount: null, start: 600, end: 720, comment: 'Workshop facilitation', attachments: [] },
       makeProjectEntry('e8', dayISO(3), 'p2', 780, 1020, 'Push notifications'),
       makeProjectEntry('e9', dayISO(4), 'p1', 570, 720, 'QA & polish'),
-      { id: 'e10', kind: 'service', date: dayISO(4), projectId: null, serviceId: 's2', customerId: 'c1', start: 780, end: 930, comment: 'Team training', attachments: [] },
+      { id: 'e10', kind: 'service', date: dayISO(4), projectId: null, serviceId: 's2', customerId: 'c1', amount: null, start: 780, end: 930, comment: 'Team training', attachments: [] },
     ],
   };
 }
@@ -460,6 +463,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
           projectId: entry.projectId ?? '',
           serviceId: entry.serviceId ?? '',
           customerId: entry.customerId ?? '',
+          amount: entry.amount != null ? String(entry.amount) : '',
           date: entry.date,
           start: fmtMin(entry.start),
           end: fmtMin(entry.end),
@@ -1005,7 +1009,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       const end = parseHM(form.end);
       const invalidProject = form.kind === 'project' && !form.projectId;
       const invalidService = form.kind === 'service' && (!form.serviceId || !form.customerId);
-      if (invalidProject || invalidService || end <= start) {
+      const parsedAmount = Number(form.amount);
+      const invalidCustomer = form.kind === 'customer' && (!form.customerId || !Number.isFinite(parsedAmount) || parsedAmount <= 0);
+      if (invalidProject || invalidService || invalidCustomer || end <= start) {
         return;
       }
 
@@ -1015,7 +1021,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         kind: form.kind,
         projectId: form.kind === 'project' ? form.projectId : null,
         serviceId: form.kind === 'service' ? form.serviceId : null,
-        customerId: form.kind === 'service' ? form.customerId : null,
+        customerId: form.kind === 'service' || form.kind === 'customer' ? form.customerId : null,
+        amount: form.kind === 'customer' ? parsedAmount : null,
         date: form.date,
         start,
         end,
@@ -1388,6 +1395,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   }, [state.customers]);
 
   const entryEarn = useCallback((entry: Entry) => {
+    if (entry.kind === 'customer') {
+      return entry.amount ?? 0;
+    }
     if (entry.kind === 'service') {
       const service = serviceById[entry.serviceId ?? ''];
       return service ? rateForDate(service.rates, entry.date) : 0;
@@ -1922,7 +1932,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       const projects = ctx.S.projects.filter((project) => project.customerId === customer.id);
       const projectIds = projects.map((project) => project.id);
       const entries = ctx.S.entries.filter(
-        (entry) => (entry.kind === 'project' && projectIds.includes(entry.projectId ?? '')) || (entry.kind === 'service' && entry.customerId === customer.id),
+        (entry) => (entry.kind === 'project' && projectIds.includes(entry.projectId ?? ''))
+          || ((entry.kind === 'service' || entry.kind === 'customer') && entry.customerId === customer.id),
       );
       const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
       const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
@@ -2028,10 +2039,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
             updateForm('customerId', ctx.S.customers[0]?.id || '');
           }
         }
+        if (kind === 'customer' && entryForm && !entryForm.customerId) {
+          updateForm('customerId', ctx.S.customers[0]?.id || '');
+        }
       },
       onFormProject: (event: ChangeEvent<HTMLSelectElement>) => updateForm('projectId', event.target.value),
       onFormService: (event: ChangeEvent<HTMLSelectElement>) => updateForm('serviceId', event.target.value),
       onFormEntryCustomer: (event: ChangeEvent<HTMLSelectElement>) => updateForm('customerId', event.target.value),
+      onFormAmount: (event: ChangeEvent<HTMLInputElement>) => updateForm('amount', event.target.value),
       onFormDate: (event: ChangeEvent<HTMLInputElement>) => updateForm('date', event.target.value),
       onFormStart: (event: ChangeEvent<HTMLInputElement>) => updateForm('start', event.target.value),
       onFormEnd: (event: ChangeEvent<HTMLInputElement>) => updateForm('end', event.target.value),
@@ -2058,7 +2073,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const projects = ctx.S.projects.filter((project) => project.customerId === customerId);
     const projectIds = projects.map((project) => project.id);
     const entries = ctx.S.entries.filter(
-      (entry) => (entry.kind === 'project' && projectIds.includes(entry.projectId ?? '')) || (entry.kind === 'service' && entry.customerId === customerId),
+      (entry) => (entry.kind === 'project' && projectIds.includes(entry.projectId ?? ''))
+        || ((entry.kind === 'service' || entry.kind === 'customer') && entry.customerId === customerId),
     );
     const minutes = entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
     const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);

@@ -26,10 +26,10 @@ const services: Service[] = [
 ];
 
 const entries: Entry[] = [
-  { id: 'e1', kind: 'project', date: '2026-01-05', projectId: 'p1', serviceId: null, customerId: null, start: 540, end: 1020, comment: '', attachments: [] }, // 8h @800/8h = 800
-  { id: 'e2', kind: 'project', date: '2026-01-10', projectId: 'p2', serviceId: null, customerId: null, start: 540, end: 780, comment: '', attachments: [] }, // 4h @600/8h = 300
-  { id: 'e3', kind: 'project', date: '2026-02-01', projectId: 'p3', serviceId: null, customerId: null, start: 540, end: 1020, comment: '', attachments: [] }, // 8h @400/8h = 400
-  { id: 'e4', kind: 'service', date: '2026-01-20', projectId: null, serviceId: 's1', customerId: 'c2', start: 540, end: 660, comment: '', attachments: [] }, // flat 900
+  { id: 'e1', kind: 'project', date: '2026-01-05', projectId: 'p1', serviceId: null, customerId: null, amount: null, start: 540, end: 1020, comment: '', attachments: [] }, // 8h @800/8h = 800
+  { id: 'e2', kind: 'project', date: '2026-01-10', projectId: 'p2', serviceId: null, customerId: null, amount: null, start: 540, end: 780, comment: '', attachments: [] }, // 4h @600/8h = 300
+  { id: 'e3', kind: 'project', date: '2026-02-01', projectId: 'p3', serviceId: null, customerId: null, amount: null, start: 540, end: 1020, comment: '', attachments: [] }, // 8h @400/8h = 400
+  { id: 'e4', kind: 'service', date: '2026-01-20', projectId: null, serviceId: 's1', customerId: 'c2', amount: null, start: 540, end: 660, comment: '', attachments: [] }, // flat 900
 ];
 
 const HOURS_PER_DAY = 8;
@@ -89,7 +89,7 @@ describe('earnings helpers', () => {
 
   test('aggregateBy returns 0 shares when total earnings is 0', () => {
     const zeroRateProjects: Project[] = [{ id: 'p0', name: 'Free', customerId: 'c1', rates: [{ id: 'r0', amount: 0, from: '2026-01-01', to: null }] }];
-    const zeroEntries: Entry[] = [{ id: 'e0', kind: 'project', date: '2026-01-05', projectId: 'p0', serviceId: null, customerId: null, start: 540, end: 1020, comment: '', attachments: [] }];
+    const zeroEntries: Entry[] = [{ id: 'e0', kind: 'project', date: '2026-01-05', projectId: 'p0', serviceId: null, customerId: null, amount: null, start: 540, end: 1020, comment: '', attachments: [] }];
     const rows = aggregateBy(zeroEntries, zeroRateProjects, [], customers, 'customer', HOURS_PER_DAY);
     expect(rows[0].sharePct).toBe(0);
   });
