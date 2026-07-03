@@ -256,14 +256,44 @@ textarea {
     overflow: auto !important;
   }
 
+  .track-view-calendar {
+    flex: none !important;
+    overflow: visible !important;
+  }
+
   .track-view-aside {
     width: 100% !important;
     border-left: none !important;
     border-top: 1px solid #eef0f3;
+    overflow: visible !important;
+    flex: none !important;
   }
 
   .cal-grid {
     grid-template-columns: 26px repeat(7, minmax(38px, 1fr)) !important;
     gap: 4px !important;
+  }
+
+  /* Per-day earnings label is dropped on mobile — the cell is too narrow to
+     fit it alongside the hours label without overflowing. Tapping the day
+     still opens the full day panel, which shows earnings. */
+  .cal-cell-earn {
+    display: none !important;
+  }
+
+  .track-summary {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    row-gap: 14px !important;
+  }
+
+  .track-summary .track-stat {
+    padding: 0 12px !important;
+    border-left: 1px solid #eef0f3 !important;
+  }
+
+  .track-summary .track-stat:nth-child(odd) {
+    border-left: none !important;
+    padding-left: 0 !important;
   }
 }

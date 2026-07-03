@@ -137,8 +137,6 @@ function makeViewModel(overrides: Partial<TempoViewModel> = {}): TempoViewModel 
         panel: { mode: 'glance', topProjects: [], onAddEntry: () => {} },
         onPrevMonth: () => {},
         onNextMonth: () => {},
-        onPrevYear: () => {},
-        onNextYear: () => {},
         onToday: () => {},
       },
       accent: '#2563eb',

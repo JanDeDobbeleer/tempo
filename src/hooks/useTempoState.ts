@@ -1109,8 +1109,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
 
   const onCalendarPrevMonth = useCallback(() => shiftCalendarAnchor(-1), [shiftCalendarAnchor]);
   const onCalendarNextMonth = useCallback(() => shiftCalendarAnchor(1), [shiftCalendarAnchor]);
-  const onCalendarPrevYear = useCallback(() => shiftCalendarAnchor(-12), [shiftCalendarAnchor]);
-  const onCalendarNextYear = useCallback(() => shiftCalendarAnchor(12), [shiftCalendarAnchor]);
   const onCalendarToday = useCallback(() => {
     setCalendarAnchorISO(null);
     setSelectedTrackDayISO(null);
@@ -1503,7 +1501,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     }
 
     // Side panel: day detail when a day is selected, otherwise a month
-    // at-a-glance summary (top projects + weekly breakdown).
+    // at-a-glance summary (entries + weekly breakdown).
     let panel: TrackDayPanelVM | TrackMonthGlanceVM;
     const selectedISO = ctx.selectedTrackDayISO;
     const selectedEntries = selectedISO ? (entriesByDate.get(selectedISO) ?? []) : [];
@@ -1617,13 +1615,11 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         panel,
         onPrevMonth: onCalendarPrevMonth,
         onNextMonth: onCalendarNextMonth,
-        onPrevYear: onCalendarPrevYear,
-        onNextYear: onCalendarNextYear,
         onToday: onCalendarToday,
       },
       accent: ctx.acc,
     };
-  }, [ctx, openEntry, openNewEntryForDate, onSelectTrackDay, onCalendarPrevMonth, onCalendarNextMonth, onCalendarPrevYear, onCalendarNextYear, onCalendarToday]);
+  }, [ctx, openEntry, openNewEntryForDate, onSelectTrackDay, onCalendarPrevMonth, onCalendarNextMonth, onCalendarToday]);
 
   const projectsProps = useMemo<ProjectsViewProps | null>(() => {
     if (!ctx.isProjects) {

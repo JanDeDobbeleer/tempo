@@ -272,8 +272,6 @@ export interface TrackCalendarVM {
   panel: TrackDayPanelVM | TrackMonthGlanceVM;
   onPrevMonth: () => void;
   onNextMonth: () => void;
-  onPrevYear: () => void;
-  onNextYear: () => void;
   onToday: () => void;
 }
 

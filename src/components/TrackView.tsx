@@ -2,21 +2,6 @@ import { Fragment, useEffect, type CSSProperties, type FC } from 'react'
 import type { TrackCalendarVM, TrackMonthDayVM, TrackViewProps } from '../types'
 import { addDays, iso, parseISO } from '../lib/dates'
 
-const navButtonStyle: CSSProperties = {
-  width: '22px',
-  height: '22px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: 'none',
-  background: 'transparent',
-  color: '#9ca3af',
-  cursor: 'pointer',
-  fontSize: '13px',
-  lineHeight: 1,
-  borderRadius: '5px',
-}
-
 const statLabelStyle: CSSProperties = {
   fontSize: '10.5px',
   letterSpacing: '0.06em',
@@ -36,16 +21,27 @@ const sectionLabelStyle: CSSProperties = {
 
 const Stat: FC<{ label: string; value: string; accent?: string; first?: boolean }> = ({ label, value, accent, first }) => (
   <div
+    className="track-stat"
     style={{
       padding: first ? '0 22px 0 0' : '0 22px',
       display: 'flex',
       flexDirection: 'column',
       gap: '5px',
+      minWidth: 0,
       borderLeft: first ? 'none' : '1px solid #eef0f3',
     }}
   >
-    <div style={statLabelStyle}>{label}</div>
-    <div style={{ fontSize: '19px', fontWeight: 600, letterSpacing: '-0.01em', fontFamily: "'Geist Mono',monospace", color: accent }}>
+    <div style={{ ...statLabelStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+    <div
+      style={{
+        fontSize: '19px',
+        fontWeight: 600,
+        letterSpacing: '-0.01em',
+        fontFamily: "'Geist Mono',monospace",
+        color: accent,
+        whiteSpace: 'nowrap',
+      }}
+    >
       {value}
     </div>
   </div>
@@ -99,7 +95,7 @@ const CalCell: FC<{ day: TrackMonthDayVM; accent: string }> = ({ day, accent }) 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '4px' }}>
         <span style={{ fontSize: '10.5px', fontFamily: "'Geist Mono',monospace", color: '#6b7280' }}>{day.hoursLabel}</span>
         {day.earnLabel && (
-          <span style={{ fontSize: '9.5px', fontFamily: "'Geist Mono',monospace", color: accent, opacity: 0.85 }}>
+          <span className="cal-cell-earn" style={{ fontSize: '9.5px', fontFamily: "'Geist Mono',monospace", color: accent, opacity: 0.85 }}>
             {day.earnLabel}
           </span>
         )}
@@ -182,7 +178,7 @@ const CalendarPanel: FC<{ calendar: TrackCalendarVM; accent: string }> = ({ cale
         </div>
       ) : (
         <>
-          <div style={sectionLabelStyle}>Top projects</div>
+          <div style={sectionLabelStyle}>Entries</div>
           {panel.topProjects.map((project) => (
             <div key={project.key} style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '5px', gap: '8px' }}>
@@ -243,14 +239,9 @@ const TrackView: FC<TrackViewProps> = ({ calendar, accent }) => {
 
   return (
     <div className="track-view-shell" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-      <div style={{ flex: 1.35, overflow: 'auto', background: '#ffffff', borderRight: '1px solid #e9ebef' }}>
+      <div className="track-view-calendar" style={{ flex: 1.35, overflow: 'auto', background: '#ffffff', borderRight: '1px solid #e9ebef' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '18px 22px 32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '2px', marginBottom: '2px' }}>
-            <button type="button" style={navButtonStyle} onClick={calendar.onPrevYear} title="Previous year" aria-label="Previous year">«</button>
-            <button type="button" style={navButtonStyle} onClick={calendar.onNextYear} title="Next year" aria-label="Next year">»</button>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'stretch', paddingBottom: '16px', marginBottom: '14px', borderBottom: '1px solid #eef0f3' }}>
+          <div className="track-summary" style={{ display: 'flex', alignItems: 'stretch', paddingBottom: '16px', marginBottom: '14px', borderBottom: '1px solid #eef0f3' }}>
             <Stat label="Hours" value={calendar.summary.hoursLabel} first />
             <Stat label="Billable days" value={calendar.summary.daysLabel} />
             <Stat label="Earnings" value={calendar.summary.earnLabel} accent={accent} />
