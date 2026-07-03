@@ -188,6 +188,20 @@ export interface DayListRowVM {
   onClick: () => void;
 }
 
+// A single logged entry shown in the timesheet list on a project's (or
+// service's) detail page. Unlike DayListRowVM (used in the Track ledger,
+// grouped by day and labelled by project), this is grouped by
+// project/service and labelled by date since the project/service is
+// already implied by the page.
+export interface EntryDetailRowVM {
+  id: string;
+  dateLabel: string;    // e.g. "Jul 2, 2026"
+  comment: string;
+  hoursLabel: string;   // e.g. "2.5h"
+  earnLabel: string;    // e.g. "€320"
+  onClick: () => void;
+}
+
 // One day in the Track ledger: a heading (weekday + date + day total) followed
 // by that day's entries in creation order, plus an "add entry" affordance
 // scoped to this specific date.
@@ -404,6 +418,8 @@ export interface ProjectDetailViewProps {
   rateRows: RatePeriodRowVM[];
   newRateAmount: string;
   newRateFrom: string;
+  entryRows: EntryDetailRowVM[];
+  entriesEmpty: boolean;
   inputStyle: CSSProperties;
   labelStyle: CSSProperties;
   btnPrimaryLg: CSSProperties;

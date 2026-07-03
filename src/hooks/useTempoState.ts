@@ -16,6 +16,7 @@ import type {
   EarningsFilterSeed,
   EarningsViewProps,
   Entry,
+  EntryDetailRowVM,
   EntryForm,
   ExportScope,
   ExportViewProps,
@@ -1892,6 +1893,17 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     const minutes = entries.reduce((sum, entry) => sum + entry.minutes, 0);
     const earn = entries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
+    const entryRows: EntryDetailRowVM[] = [...entries]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((entry) => ({
+        id: entry.id,
+        dateLabel: fmtShortDateYear(parseISO(entry.date)),
+        comment: entry.comment,
+        hoursLabel: fmtH(entry.minutes),
+        earnLabel: fmtEUR(ctx.entryEarn(entry)),
+        onClick: () => openEntry(entry, false),
+      }));
+
     const rateRows: RatePeriodRowVM[] = sortRates(draft.rates).map((rate) => ({
       id: rate.id,
       amount: String(rate.amount),
@@ -1926,6 +1938,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       canDelete: !isNew,
       custOpts: ctx.S.customers.map((customer) => ({ id: customer.id, name: customer.name })),
       rateRows,
+      entryRows,
+      entriesEmpty: entryRows.length === 0,
       newRateAmount: draft.newRateAmount,
       newRateFrom: draft.newRateFrom,
       inputStyle,
@@ -1964,7 +1978,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
         }
       },
     };
-  }, [addRate, backFromProjectDetail, ctx, deleteProjectDraft, deleteRate, openEarnings, openExport, saveProjectDraft, updateProjectDraft, updateRateField]);
+  }, [addRate, backFromProjectDetail, ctx, deleteProjectDraft, deleteRate, openEarnings, openEntry, openExport, saveProjectDraft, updateProjectDraft, updateRateField]);
 
   const serviceDetailProps = useMemo<ServiceDetailViewProps | null>(() => {
     if (!ctx.isServiceDetail || !ctx.S.serviceDraft) {

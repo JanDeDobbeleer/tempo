@@ -12,6 +12,8 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
   canDelete,
   custOpts,
   rateRows,
+  entryRows,
+  entriesEmpty,
   newRateAmount,
   newRateFrom,
   inputStyle,
@@ -174,22 +176,44 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '26px' }}>
           {canDelete ? (
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={onDelete}
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: '#dc2626',
-                  padding: '8px 4px',
-                }}
-              >
-                Delete project
-              </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              style={{
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#dc2626',
+                padding: '8px 4px',
+              }}
+            >
+              Delete project
+            </button>
+          ) : (
+            <span />
+          )}
+
+          <button type="button" style={btnPrimaryLg} onClick={onSave}>
+            {saveLabel}
+          </button>
+        </div>
+      </div>
+
+      {!isNew && (
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid #e9ebef',
+            borderRadius: '14px',
+            padding: '22px',
+            marginTop: '20px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600 }}>Timesheet entries</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
                 onClick={onViewEarnings}
@@ -225,15 +249,61 @@ const ProjectDetailView: FC<ProjectDetailViewProps> = ({
                 Export timesheet
               </button>
             </div>
-          ) : (
-            <span />
-          )}
+          </div>
 
-          <button type="button" style={btnPrimaryLg} onClick={onSave}>
-            {saveLabel}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {entryRows.map((row) => (
+              <div
+                key={row.id}
+                className="day-list-row"
+                style={{
+                  display: 'flex',
+                  gap: '11px',
+                  padding: '11px 12px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  border: '1px solid #eef0f3',
+                  background: '#fff',
+                }}
+                onClick={row.onClick}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {row.dateLabel}
+                  </div>
+                  {row.comment && (
+                    <div style={{ fontSize: '12px', color: '#8a909a', marginTop: '3px', lineHeight: 1.35 }}>
+                      {row.comment}
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, fontFamily: "'Geist Mono',monospace" }}>
+                    {row.hoursLabel}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#626873', fontFamily: "'Geist Mono',monospace", marginTop: '2px' }}>
+                    {row.earnLabel}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {entriesEmpty && (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af', fontSize: '14px' }}>
+                No timesheet entries yet for this project.
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   </div>
 );
