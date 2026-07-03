@@ -1293,14 +1293,14 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   };
 
   const sidebarProps = useMemo<SidebarProps>(() => {
-    const periodLabel = 'This week';
-    const weekStart = startOfWeek(ctx.ref);
-    const dayCount = ctx.showWeekend ? 7 : 5;
-    const weekISOs = new Set<string>();
-    for (let day = 0; day < dayCount; day += 1) {
-      weekISOs.add(iso(addDays(weekStart, day)));
-    }
-    const periodEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
+    const periodLabel = 'This month';
+    const now = new Date();
+    const thisYear = now.getFullYear();
+    const thisMonth = now.getMonth();
+    const periodEntries = ctx.S.entries.filter((entry) => {
+      const d = parseISO(entry.date);
+      return d.getFullYear() === thisYear && d.getMonth() === thisMonth;
+    });
 
     const periodMinutes = periodEntries.reduce((sum, entry) => sum + entry.minutes, 0);
     const periodEarn = periodEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
@@ -1334,9 +1334,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onNavExport: () => openExport(null),
       onNavEarnings: () => openEarnings(null),
       periodLabel,
-      weekHours: fmtH(periodMinutes),
-      weekDaysStr: (periodMinutes / 60 / ctx.hpd).toFixed(1),
-      weekEarnStr: fmtEUR(periodEarn),
+      monthHours: fmtH(periodMinutes),
+      monthDaysStr: (periodMinutes / 60 / ctx.hpd).toFixed(1),
+      monthEarnStr: fmtEUR(periodEarn),
       syncColor,
       syncLabel,
       onOpenSettings: openSettings,

@@ -15,9 +15,9 @@ const Sidebar: FC<SidebarProps> = ({
   onNavCustomers,
   onNavExport,
   onNavEarnings,
-  weekHours,
-  weekDaysStr,
-  weekEarnStr,
+  monthHours,
+  monthDaysStr,
+  monthEarnStr,
   periodLabel,
   syncColor,
   syncLabel,
@@ -154,9 +154,9 @@ const Sidebar: FC<SidebarProps> = ({
           {periodLabel}
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '8px' }}>
-          <span style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.02em' }}>{weekHours}</span>
+          <span style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.02em' }}>{monthHours}</span>
           <span style={{ fontSize: '13px', color: '#9ca3af', fontFamily: "'Geist Mono',monospace" }}>
-            / {weekDaysStr}d
+            / {monthDaysStr}d
           </span>
         </div>
         <div
@@ -171,7 +171,7 @@ const Sidebar: FC<SidebarProps> = ({
         >
           <span style={{ fontSize: '12px', color: '#626873' }}>Earnings</span>
           <span style={{ fontSize: '15px', fontWeight: 600, fontFamily: "'Geist Mono',monospace" }}>
-            {weekEarnStr}
+            {monthEarnStr}
           </span>
         </div>
       </div>

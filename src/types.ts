@@ -148,9 +148,9 @@ export interface SidebarProps {
   onNavExport: () => void;
   onNavEarnings: () => void;
   periodLabel: string;
-  weekHours: string;
-  weekDaysStr: string;
-  weekEarnStr: string;
+  monthHours: string;
+  monthDaysStr: string;
+  monthEarnStr: string;
   syncColor: string;
   syncLabel: string;
   onOpenSettings: () => void;
