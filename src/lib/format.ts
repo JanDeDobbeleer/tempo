@@ -21,6 +21,14 @@ export function fmtH(min: number): string {
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}h`;
 }
 
+// Renders a duration in minutes as a decimal number of days (e.g. "2.5d"),
+// given the number of hours that make up one working day.
+export function fmtDays(min: number, hoursPerDay: number): string {
+  const days = min / 60 / hoursPerDay;
+  const rounded = Math.round(days * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}d`;
+}
+
 export function fmtEUR(n: number): string {
   return `€${Math.round(n).toLocaleString('en-US')}`;
 }

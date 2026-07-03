@@ -93,51 +93,59 @@ textarea {
   background: #f8f9fb;
 }
 
-/* ── Track timesheet matrix ─────────────────────────────────────────────
-   Hover affordances for the inline-editable hour cells; structural styles
-   live inline in TrackView.tsx like the rest of the components. */
-.matrix-cell {
-  transition: border-color 120ms ease, background-color 120ms ease;
-}
-
-.matrix-cell--filled:hover {
-  border-color: #b9c6e8 !important;
-}
-
-.matrix-cell--empty:hover {
-  border-color: #d7dadf !important;
-  background: #f9fafb !important;
-  color: #9ca3af !important;
-}
-
-.matrix-cell-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.matrix-cell-open {
-  position: absolute;
-  left: 100%;
-  border: none;
-  background: transparent;
-  color: #9ca3af;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  padding: 4px 2px;
-  border-radius: 5px;
+/* ── Track calendar-first view ──────────────────────────────────────────
+   Hover/selection/motion for the month grid and its side panel; structural
+   styles live inline in TrackView.tsx like the rest of the components. */
+.cal-cell {
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
   opacity: 0;
-  transition: opacity 120ms ease;
+  animation: cal-cell-in 260ms ease forwards;
 }
 
-.matrix-cell-wrap:hover .matrix-cell-open,
-.matrix-cell-open:focus-visible {
-  opacity: 1;
+@keyframes cal-cell-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.matrix-cell-open:hover {
-  color: #1a1c20;
+.cal-cell:hover {
+  border-color: #c9cdd4 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(26, 28, 32, 0.06);
+  z-index: 2;
+}
+
+.cal-panel-body {
+  animation: cal-panel-in 180ms ease;
+}
+
+@keyframes cal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cal-prow {
+  transition: border-color 120ms ease;
+}
+
+.cal-prow:hover {
+  border-color: #c9cdd4 !important;
+}
+
+.cal-add-entry:hover {
+  color: #6b7280 !important;
+  background: #ffffff !important;
 }
 
 /* ── Responsive scaffolding ─────────────────────────────────────────────
@@ -250,9 +258,12 @@ textarea {
 
   .track-view-aside {
     width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid #eef0f3;
   }
 
-  .matrix-cell-open {
-    opacity: 1; /* no hover on touch — keep the detail affordance visible */
+  .cal-grid {
+    grid-template-columns: 26px repeat(7, minmax(38px, 1fr)) !important;
+    gap: 4px !important;
   }
 }

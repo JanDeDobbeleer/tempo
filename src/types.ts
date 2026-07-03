@@ -190,81 +190,95 @@ export interface EntryDetailRowVM {
   onClick: () => void;
 }
 
-// One cell in the Track timesheet matrix: the hours logged for a given row
-// context (project / service / customer flat fee) on a given day. Single-
-// entry and empty cells edit inline — typing hours creates, updates or
-// (at 0) deletes the underlying entry. Multi-entry cells and customer-fee
-// creation (which needs an amount) fall back to the standard entry modal.
-export interface MatrixCellVM {
-  iso: string;
-  hoursLabel: string;        // e.g. "2.5h" ('' when empty)
-  editValue: string;         // hours as editable text, e.g. "2.5" ('' when empty)
-  entryCount: number;
-  hasDetails: boolean;       // some entry in the cell has a comment/attachments
-  isToday: boolean;
-  isWeekend: boolean;
-  editable: boolean;         // false → clicking calls onOpen instead of inline edit
-  title: string;             // hover tooltip (comment preview / entry count)
-  onCommit: (hours: string) => void;
-  onOpen: (() => void) | null;  // open the entry modal (edit, or prefilled new)
-}
-
-// One row in the Track timesheet matrix. Rows are derived from the entries
-// in the displayed week — they are never added or removed by hand. New rows
-// appear via the standard "Add entry" modal; a row disappears once its last
-// entry in the week is deleted.
-export interface MatrixRowVM {
-  key: string;
+// One entry shown in the Track day-detail side panel for a selected day.
+export interface TrackDayEntryVM {
+  id: string;
   name: string;              // project/service/customer name
-  subLabel: string;          // customer name (projects/services) or "Flat fee"
+  subLabel: string;          // customer name, "Flat fee", or a comment preview
   dotColor: string;
-  cells: MatrixCellVM[];
-  totalHoursLabel: string;
-  totalEarnLabel: string;    // '' when nothing earned
+  hoursLabel: string;        // '' for customer flat-fee entries (no hours)
+  earnLabel: string;         // '' when nothing earned
+  onClick: () => void;       // opens the entry modal for editing
 }
 
-export interface TrackMatrixVM {
-  dayHeaders: { iso: string; label: string; isToday: boolean; isWeekend: boolean }[];
-  rows: MatrixRowVM[];
-  dayTotals: string[];       // aligned with dayHeaders ('' when the day is empty)
-  totalHoursLabel: string;
-  totalEarnLabel: string;
-  onAddEntry: () => void;    // opens the standard entry modal
-}
-
-// One day cell in the read-only month heatmap shown on the Track page.
-// Shading intensity encodes hours logged that day; clicking navigates the
-// ledger to the week containing this date. Purely glanceable — no entry
-// creation/editing happens here.
-export interface MonthHeatmapDayVM {
+// One day cell in the Track month grid. Shading + pips encode hours logged
+// and which contexts (projects/services/customers) were touched that day.
+// Clicking selects the day into the side panel; clicking the selected day
+// again returns the panel to the month-at-a-glance state.
+export interface TrackMonthDayVM {
   iso: string;
   dayNum: number;
-  style: CSSProperties;      // fully-computed cell style incl. shading
-  hoursLabel: string;        // e.g. "6h" ('' when the day is empty)
   isToday: boolean;
   isCurrentMonth: boolean;   // false for leading/trailing days of adjacent months
+  isWeekend: boolean;
+  isSelected: boolean;
+  hasData: boolean;
+  hoursLabel: string;        // '' when empty
+  earnLabel: string;         // '' when nothing earned
+  pips: string[];            // dot colors for distinct contexts logged that day
+  title: string;             // hover tooltip
   onClick: () => void;
 }
 
-export interface MonthHeatmapVM {
+export interface TrackWeekRowVM {
+  weekLabel: string;         // e.g. "W27"
+  hoursLabel: string;        // '' when the week is empty
+  days: TrackMonthDayVM[];
+}
+
+// Side panel, day-detail state — shown once a day is selected.
+export interface TrackDayPanelVM {
+  mode: 'day';
+  iso: string;
+  dateLabel: string;         // e.g. "Thursday, Jul 2"
+  hoursLabel: string;
+  earnLabel: string;
+  entries: TrackDayEntryVM[];
+  onAddEntry: () => void;
+  onBack: () => void;        // return to month-at-a-glance
+}
+
+export interface TrackMonthGlanceProjectVM {
+  key: string;
+  name: string;
+  subLabel: string;
+  dotColor: string;
+  hoursLabel: string;
+  earnLabel: string;
+  barPct: number;            // 0-100, relative to the busiest project this month
+}
+
+// Side panel, month-at-a-glance state — the default when no day is selected.
+export interface TrackMonthGlanceVM {
+  mode: 'glance';
+  topProjects: TrackMonthGlanceProjectVM[];
+  onAddEntry: () => void;
+}
+
+// Summary stats for the month currently displayed in the calendar, shown in
+// a strip above the grid regardless of which side-panel state is active.
+export interface TrackMonthSummaryVM {
+  hoursLabel: string;
+  daysLabel: string;
+  earnLabel: string;
+  entryCountLabel: string;
+}
+
+export interface TrackCalendarVM {
   monthLabel: string;        // e.g. "July 2026"
-  weeks: MonthHeatmapDayVM[][];
   dowLabels: string[];       // Mon..Sun column headers
+  weeks: TrackWeekRowVM[];
+  summary: TrackMonthSummaryVM;
+  panel: TrackDayPanelVM | TrackMonthGlanceVM;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onPrevYear: () => void;
   onNextYear: () => void;
+  onToday: () => void;
 }
 
 export interface TrackViewProps {
-  matrix: TrackMatrixVM;
-  weekSummary: {
-    weekLabel: string;    // e.g. "Week 27"
-    hoursLabel: string;
-    daysLabel: string;
-    earnLabel: string;
-  };
-  monthHeatmap: MonthHeatmapVM;
+  calendar: TrackCalendarVM;
   accent: string;
 }
 

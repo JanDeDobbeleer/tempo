@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type MouseEvent } from 'react';
 
-import { addDays, addMonths, fmtMonthYear, fmtShortDate, fmtShortDateYear, iso, isoWeekNumber, parseISO, startOfWeek } from '../lib/dates';
-import { fmtEUR, fmtH, fmtBytes, hexToRgba, hoursToMinutes, minutesToHours, uid } from '../lib/format';
+import { addDays, addMonths, fmtFullDate, fmtMonthYear, fmtShortDateYear, iso, isoWeekNumber, parseISO, startOfWeek } from '../lib/dates';
+import { fmtEUR, fmtH, fmtDays, fmtBytes, hexToRgba, hoursToMinutes, minutesToHours, uid } from '../lib/format';
 import { addRatePeriod, currentRatePeriod, hasOverlap, rateForDate, sortRates } from '../lib/rates';
 import * as store from '../lib/store';
 import type {
@@ -38,9 +38,12 @@ import type {
   SyncStatus,
   TempoSettings,
   TempoViewModel,
-  MonthHeatmapDayVM,
-  MatrixCellVM,
-  MatrixRowVM,
+  TrackDayEntryVM,
+  TrackDayPanelVM,
+  TrackMonthDayVM,
+  TrackMonthGlanceProjectVM,
+  TrackMonthGlanceVM,
+  TrackWeekRowVM,
   TrackViewProps,
 } from '../types';
 
@@ -112,7 +115,8 @@ type RenderCtx = {
   isExport: boolean;
   isEarnings: boolean;
   navSection: 'track' | 'projects' | 'services' | 'customers' | 'settings' | 'export' | 'earnings';
-  heatmapAnchor: Date;
+  calendarAnchor: Date;
+  selectedTrackDayISO: string | null;
 };
 
 function getHoursPerDay(settings: TempoSettings): number {
@@ -283,11 +287,13 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   const [state, setState] = useState<TempoState>(createInitialState);
   const stateRef = useRef(state);
   const skipNextPushRef = useRef(false);
-  // The month heatmap normally follows the active ledger week (ref), but the
-  // user can browse other months/years independently via the heatmap's own
-  // nav controls. `null` means "follow the ledger"; it resets to that once
-  // the ledger's own navigation (setRefISO) moves to a different month.
-  const [heatmapAnchorISO, setHeatmapAnchorISO] = useState<string | null>(null);
+  // The Track calendar's displayed month. `null` means "the month containing
+  // today"; its own prev/next month/year controls move it independently.
+  const [calendarAnchorISO, setCalendarAnchorISO] = useState<string | null>(null);
+  // The day selected in the Track calendar's side panel. `null` shows the
+  // month-at-a-glance state; selecting a day (or clicking it again) toggles
+  // between the day-detail and glance states.
+  const [selectedTrackDayISO, setSelectedTrackDayISO] = useState<string | null>(null);
 
   useEffect(() => {
     stateRef.current = state;
@@ -334,62 +340,6 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   const openNewEntry = useCallback(() => {
     openNewEntryForDate(stateRef.current.refISO);
   }, [openNewEntryForDate]);
-
-  // Inline hour edits coming from the Track matrix. `existing` is the single
-  // entry currently in the (row context, day) cell, or null for an empty
-  // cell. Typing >0 hours updates/creates the entry, 0 (or clearing the
-  // value) deletes it — rows exist purely as a consequence of entries.
-  const commitMatrixCell = useCallback((
-    existing: Entry | null,
-    context: Pick<Entry, 'kind' | 'projectId' | 'serviceId' | 'customerId'>,
-    dateISO: string,
-    hours: string,
-  ) => {
-    const minutes = hoursToMinutes(hours);
-
-    if (existing) {
-      if (hours.trim() !== '' && !Number.isFinite(minutes)) {
-        return; // unparsable input — keep the entry untouched
-      }
-      if (!Number.isFinite(minutes) || minutes <= 0) {
-        existing.attachments.forEach((attachment) => {
-          void store.deleteAttachment(existing.id, attachment.id);
-        });
-        setState((current) => ({
-          ...current,
-          entries: current.entries.filter((entry) => entry.id !== existing.id),
-        }));
-        return;
-      }
-      setState((current) => ({
-        ...current,
-        entries: current.entries.map((entry) => (
-          entry.id === existing.id ? { ...entry, minutes } : entry
-        )),
-      }));
-      return;
-    }
-
-    if (!Number.isFinite(minutes) || minutes <= 0) {
-      return;
-    }
-    const newEntry: Entry = {
-      id: uid(),
-      kind: context.kind,
-      projectId: context.projectId,
-      serviceId: context.serviceId,
-      customerId: context.customerId,
-      amount: null,
-      date: dateISO,
-      minutes,
-      comment: '',
-      attachments: [],
-    };
-    setState((current) => ({
-      ...current,
-      entries: [...current.entries, newEntry],
-    }));
-  }, []);
 
   const draftFromProject = useCallback((project: Project | null, customers: Customer[], presetCustomerId?: string): ProjectForm => (
     project
@@ -1149,22 +1099,25 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     setState((current) => ({ ...current, page: 'earnings', earningsFilter: seed }));
   }, []);
 
-  const setRefISO = useCallback((refISO: string) => {
-    setState((current) => ({ ...current, refISO }));
-    setHeatmapAnchorISO(null);
-  }, []);
-
-  const shiftHeatmapAnchor = useCallback((months: number) => {
-    setHeatmapAnchorISO((current) => {
+  const shiftCalendarAnchor = useCallback((months: number) => {
+    setCalendarAnchorISO((current) => {
       const base = current ? parseISO(current) : parseISO(stateRef.current.refISO);
       return iso(addMonths(base, months));
     });
+    setSelectedTrackDayISO(null);
   }, []);
 
-  const onHeatmapPrevMonth = useCallback(() => shiftHeatmapAnchor(-1), [shiftHeatmapAnchor]);
-  const onHeatmapNextMonth = useCallback(() => shiftHeatmapAnchor(1), [shiftHeatmapAnchor]);
-  const onHeatmapPrevYear = useCallback(() => shiftHeatmapAnchor(-12), [shiftHeatmapAnchor]);
-  const onHeatmapNextYear = useCallback(() => shiftHeatmapAnchor(12), [shiftHeatmapAnchor]);
+  const onCalendarPrevMonth = useCallback(() => shiftCalendarAnchor(-1), [shiftCalendarAnchor]);
+  const onCalendarNextMonth = useCallback(() => shiftCalendarAnchor(1), [shiftCalendarAnchor]);
+  const onCalendarPrevYear = useCallback(() => shiftCalendarAnchor(-12), [shiftCalendarAnchor]);
+  const onCalendarNextYear = useCallback(() => shiftCalendarAnchor(12), [shiftCalendarAnchor]);
+  const onCalendarToday = useCallback(() => {
+    setCalendarAnchorISO(null);
+    setSelectedTrackDayISO(null);
+  }, []);
+  const onSelectTrackDay = useCallback((dayISO: string) => {
+    setSelectedTrackDayISO((current) => (current === dayISO ? null : dayISO));
+  }, []);
 
   useEffect(() => {
     const data = {
@@ -1294,7 +1247,8 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     isExport: state.page === 'export',
     isEarnings: state.page === 'earnings',
     navSection,
-    heatmapAnchor: heatmapAnchorISO ? parseISO(heatmapAnchorISO) : ref,
+    calendarAnchor: calendarAnchorISO ? parseISO(calendarAnchorISO) : ref,
+    selectedTrackDayISO,
   };
 
   const sidebarProps = useMemo<SidebarProps>(() => {
@@ -1349,36 +1303,34 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
   }, [ctx, openEarnings, openExport, openSettings, setPage]);
 
   const headerProps = useMemo<AppHeaderProps>(() => {
-    const weekStart = startOfWeek(ctx.ref);
-    const weekEnd = addDays(weekStart, 6);
-    const weekRange = `${fmtShortDate(weekStart)} – ${fmtShortDateYear(weekEnd)}`;
+    const monthRef = ctx.calendarAnchor;
+    const monthIndex = monthRef.getMonth();
+    const monthYear = monthRef.getFullYear();
+    const today = new Date();
+    const diffMonths = (monthYear - today.getFullYear()) * 12 + (monthIndex - today.getMonth());
 
-    const diffWeeks = Math.round((weekStart.getTime() - startOfWeek(new Date()).getTime()) / (7 * 86400000));
+    const relMonth = diffMonths === 0
+      ? 'This month'
+      : diffMonths === -1
+        ? 'Last month'
+        : diffMonths === 1
+          ? 'Next month'
+          : diffMonths < 0
+            ? `${Math.abs(diffMonths)} months ago`
+            : `${diffMonths} months from now`;
 
-    const relWeek = diffWeeks === 0
-      ? 'This week'
-      : diffWeeks === -1
-        ? 'Last week'
-        : diffWeeks === 1
-          ? 'Next week'
-          : diffWeeks < 0
-            ? `${Math.abs(diffWeeks)} weeks ago`
-            : `${diffWeeks} weeks from now`;
-
-    const dayCount = ctx.showWeekend ? 7 : 5;
-    const weekISOs = new Set<string>();
-    for (let day = 0; day < dayCount; day += 1) {
-      weekISOs.add(iso(addDays(weekStart, day)));
-    }
-    const weekEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
-    const weekMinutes = weekEntries.reduce((sum, entry) => sum + entry.minutes, 0);
-    const weekEarn = weekEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+    const monthEntries = ctx.S.entries.filter((entry) => {
+      const date = parseISO(entry.date);
+      return date.getFullYear() === monthYear && date.getMonth() === monthIndex;
+    });
+    const monthMinutes = monthEntries.reduce((sum, entry) => sum + entry.minutes, 0);
+    const monthEarn = monthEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
 
     let headerTitle = 'Today';
     let headerSubtitle = '';
     if (ctx.isTrack) {
-      headerTitle = `${relWeek} · W${isoWeekNumber(weekStart)}`;
-      headerSubtitle = `${weekRange}${weekMinutes > 0 ? ` · ${fmtH(weekMinutes)} · ${fmtEUR(weekEarn)}` : ''}`;
+      headerTitle = fmtMonthYear(monthRef);
+      headerSubtitle = `${relMonth}${monthMinutes > 0 ? ` · ${fmtH(monthMinutes)} · ${fmtEUR(monthEarn)}` : ''}`;
     } else if (ctx.isProjects) {
       headerTitle = 'Projects';
       headerSubtitle = `${ctx.S.projects.length} active`;
@@ -1419,15 +1371,9 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       isProjects: ctx.isProjects,
       isServices: ctx.isServices,
       isCustomers: ctx.isCustomers,
-      onPrev: () => {
-        const date = parseISO(ctx.S.refISO);
-        setRefISO(iso(addDays(date, -7)));
-      },
-      onToday: () => setRefISO(ctx.todayISO),
-      onNext: () => {
-        const date = parseISO(ctx.S.refISO);
-        setRefISO(iso(addDays(date, 7)));
-      },
+      onPrev: onCalendarPrevMonth,
+      onToday: onCalendarToday,
+      onNext: onCalendarNextMonth,
       btnPrimary: {
         height: '44px',
         padding: '0 15px',
@@ -1445,7 +1391,7 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       onNewService: () => openServiceDetail(null),
       onNewCustomer: () => openCustomer(null),
     };
-  }, [ctx, openCustomer, openNewEntry, openProjectDetail, openServiceDetail, setRefISO]);
+  }, [ctx, onCalendarNextMonth, onCalendarPrevMonth, onCalendarToday, openCustomer, openNewEntry, openProjectDetail, openServiceDetail]);
 
   const settingsProps = useMemo<SettingsViewProps | null>(() => {
     if (!ctx.isSettings) {
@@ -1476,237 +1422,208 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
       return null;
     }
 
-    const weekStart = startOfWeek(ctx.ref);
-    const dayCount = ctx.showWeekend ? 7 : 5;
     const dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-    const dayHeaders = Array.from({ length: dayCount }, (_, index) => {
-      const date = addDays(weekStart, index);
-      const dayISO = iso(date);
-      return {
-        iso: dayISO,
-        label: `${dowLabels[index]} ${date.getDate()}`,
-        isToday: dayISO === ctx.todayISO,
-        isWeekend: index >= 5,
-      };
-    });
-
-    const weekISOs = new Set(dayHeaders.map((header) => header.iso));
-    const weekEntries = ctx.S.entries.filter((entry) => weekISOs.has(entry.date));
-    const weekMinutes = weekEntries.reduce((sum, entry) => sum + entry.minutes, 0);
-    const weekEarn = weekEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
-
-    // Matrix rows are derived from the week's entries: one row per logged
-    // context (project, service+customer, or customer flat fee). Rows are
-    // never managed by hand — the "Add entry" modal introduces new ones, and
-    // a row vanishes once its last entry in the week is gone.
-    type RowSeed = {
-      key: string;
-      kind: Entry['kind'];
-      projectId: string | null;
-      serviceId: string | null;
-      customerId: string | null;
-      name: string;
-      subLabel: string;
-      dotColor: string;
-    };
-    const rowByKey = new Map<string, RowSeed>();
-    for (const entry of weekEntries) {
-      const key = entry.kind === 'project'
-        ? `project:${entry.projectId}`
-        : entry.kind === 'service'
-          ? `service:${entry.serviceId}:${entry.customerId}`
-          : `customer:${entry.customerId}`;
-      if (rowByKey.has(key)) {
-        continue;
-      }
-      const customerName = ctx.custById[entry.customerId ?? '']?.name || '—';
-      rowByKey.set(key, {
-        key,
-        kind: entry.kind,
-        projectId: entry.kind === 'project' ? entry.projectId : null,
-        serviceId: entry.kind === 'service' ? entry.serviceId : null,
-        customerId: entry.kind === 'project' ? null : entry.customerId,
-        name: entry.kind === 'project'
-          ? (ctx.projById[entry.projectId ?? '']?.name || '—')
-          : entry.kind === 'service'
-            ? (ctx.serviceById[entry.serviceId ?? '']?.name || '—')
-            : customerName,
-        subLabel: entry.kind === 'project'
-          ? (ctx.custById[ctx.projById[entry.projectId ?? '']?.customerId ?? '']?.name || '—')
-          : entry.kind === 'service'
-            ? customerName
-            : 'Flat fee',
-        dotColor: colorForEntry(entry, ctx.projById, ctx.custById),
-      });
-    }
-
-    const kindOrder: Record<Entry['kind'], number> = { project: 0, service: 1, customer: 2 };
-    const rowSeeds = [...rowByKey.values()].sort((a, b) => (
-      kindOrder[a.kind] - kindOrder[b.kind]
-      || a.name.localeCompare(b.name)
-      || a.subLabel.localeCompare(b.subLabel)
-    ));
-
-    const rows: MatrixRowVM[] = rowSeeds.map((seed) => {
-      const matchesRow = (entry: Entry): boolean => entry.kind === seed.kind && (
-        seed.kind === 'project'
-          ? entry.projectId === seed.projectId
-          : seed.kind === 'service'
-            ? entry.serviceId === seed.serviceId && entry.customerId === seed.customerId
-            : entry.customerId === seed.customerId
-      );
-      const rowEntries = weekEntries.filter(matchesRow);
-
-      const cells: MatrixCellVM[] = dayHeaders.map((header) => {
-        const cellEntries = rowEntries.filter((entry) => entry.date === header.iso);
-        const cellMinutes = cellEntries.reduce((sum, entry) => sum + entry.minutes, 0);
-        const single = cellEntries.length === 1 ? cellEntries[0] : null;
-        const context = {
-          kind: seed.kind,
-          projectId: seed.projectId,
-          serviceId: seed.serviceId,
-          customerId: seed.customerId,
-        };
-        // Customer flat-fee entries need an amount, so creating one goes
-        // through the modal; multi-entry cells are disambiguated there too.
-        const editable = cellEntries.length <= 1 && !(seed.kind === 'customer' && cellEntries.length === 0);
-        const onOpen = cellEntries.length > 0
-          ? () => openEntry(cellEntries[0], false)
-          : seed.kind === 'customer'
-            ? () => openEntry({
-                kind: 'customer',
-                projectId: null,
-                serviceId: null,
-                customerId: seed.customerId,
-                date: header.iso,
-                minutes: 60,
-                comment: '',
-              }, true)
-            : null;
-
-        return {
-          iso: header.iso,
-          hoursLabel: cellMinutes > 0 ? fmtH(cellMinutes) : '',
-          editValue: single ? minutesToHours(single.minutes) : '',
-          entryCount: cellEntries.length,
-          hasDetails: cellEntries.some((entry) => entry.comment !== '' || entry.attachments.length > 0),
-          isToday: header.isToday,
-          isWeekend: header.isWeekend,
-          editable,
-          title: cellEntries.length > 1
-            ? `${cellEntries.length} entries — click to open`
-            : (single?.comment || ''),
-          onCommit: (hours: string) => commitMatrixCell(single, context, header.iso, hours),
-          onOpen,
-        };
-      });
-
-      const rowMinutes = rowEntries.reduce((sum, entry) => sum + entry.minutes, 0);
-      const rowEarn = rowEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
-
-      return {
-        key: seed.key,
-        name: seed.name,
-        subLabel: seed.subLabel,
-        dotColor: seed.dotColor,
-        cells,
-        totalHoursLabel: fmtH(rowMinutes),
-        totalEarnLabel: rowEarn > 0 ? fmtEUR(rowEarn) : '',
-      };
-    });
-
-    const dayTotals = dayHeaders.map((header) => {
-      const minutes = weekEntries
-        .filter((entry) => entry.date === header.iso)
-        .reduce((sum, entry) => sum + entry.minutes, 0);
-      return minutes > 0 ? fmtH(minutes) : '';
-    });
-
-    // Read-only month heatmap. The displayed month defaults to the currently
-    // active week (ctx.ref) but can be browsed independently via its own
-    // prev/next month/year controls (ctx.heatmapAnchor); browsing the ledger
-    // itself (setRefISO) resets the heatmap back to following the ledger.
-    // Shading maps hours/day onto accent opacity, clamped so a normal full
-    // day reads as strongly shaded without single very-long days maxing out.
-    const minutesByDate = new Map<string, number>();
-    for (const entry of ctx.S.entries) {
-      minutesByDate.set(entry.date, (minutesByDate.get(entry.date) ?? 0) + entry.minutes);
-    }
-
-    const monthRef = ctx.heatmapAnchor;
+    const monthRef = ctx.calendarAnchor;
     const monthIndex = monthRef.getMonth();
-    const gridStart = startOfWeek(new Date(monthRef.getFullYear(), monthIndex, 1, 12));
+    const monthYear = monthRef.getFullYear();
+    const gridStart = startOfWeek(new Date(monthYear, monthIndex, 1, 12));
+
+    const entriesByDate = new Map<string, Entry[]>();
+    for (const entry of ctx.S.entries) {
+      const list = entriesByDate.get(entry.date);
+      if (list) {
+        list.push(entry);
+      } else {
+        entriesByDate.set(entry.date, [entry]);
+      }
+    }
+
+    const monthEntries = ctx.S.entries.filter((entry) => {
+      const date = parseISO(entry.date);
+      return date.getFullYear() === monthYear && date.getMonth() === monthIndex;
+    });
+    const monthMinutes = monthEntries.reduce((sum, entry) => sum + entry.minutes, 0);
+    const monthEarn = monthEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
     const shadeCap = ctx.hpd > 0 ? ctx.hpd * 1.25 : 1;
 
-    const heatmapWeeks: MonthHeatmapDayVM[][] = [];
+    // Month grid: 6 fixed rows so the layout never reflows month to month.
+    const weeks: TrackWeekRowVM[] = [];
     for (let week = 0; week < 6; week += 1) {
-      const row: MonthHeatmapDayVM[] = [];
+      const days: TrackMonthDayVM[] = [];
+      let weekMinutes = 0;
       for (let day = 0; day < 7; day += 1) {
         const date = addDays(gridStart, week * 7 + day);
         const cellISO = iso(date);
         const isCurrentMonth = date.getMonth() === monthIndex;
         const isToday = cellISO === ctx.todayISO;
-        const cellMinutes = minutesByDate.get(cellISO) ?? 0;
-        const intensity = Math.min(cellMinutes / 60 / shadeCap, 1);
-        const background = cellMinutes > 0
-          ? hexToRgba(ctx.acc, 0.1 + intensity * 0.8)
-          : '#f6f7f9';
-        const textColor = cellMinutes > 0 && intensity > 0.55 ? '#ffffff' : '#3a3f48';
+        const cellEntries = entriesByDate.get(cellISO) ?? [];
+        const cellMinutes = cellEntries.reduce((sum, entry) => sum + entry.minutes, 0);
+        const cellEarn = cellEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+        weekMinutes += cellMinutes;
 
-        row.push({
+        const pipColors: string[] = [];
+        const seenPipKeys = new Set<string>();
+        for (const entry of cellEntries) {
+          const pipKey = entry.kind === 'project'
+            ? `project:${entry.projectId}`
+            : entry.kind === 'service'
+              ? `service:${entry.serviceId}:${entry.customerId}`
+              : `customer:${entry.customerId}`;
+          if (seenPipKeys.has(pipKey)) {
+            continue;
+          }
+          seenPipKeys.add(pipKey);
+          pipColors.push(colorForEntry(entry, ctx.projById, ctx.custById));
+          if (pipColors.length >= 4) {
+            break;
+          }
+        }
+
+        days.push({
           iso: cellISO,
           dayNum: date.getDate(),
-          hoursLabel: cellMinutes > 0 ? fmtH(cellMinutes) : '',
           isToday,
           isCurrentMonth,
-          style: {
-            minHeight: '40px',
-            borderRadius: '8px',
-            padding: '5px 6px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '2px',
-            cursor: 'pointer',
-            background,
-            color: textColor,
-            border: isToday ? `1.5px solid ${ctx.acc}` : '1px solid #eef0f3',
-            opacity: isCurrentMonth ? 1 : 0.4,
-          },
-          onClick: () => setRefISO(cellISO),
+          isWeekend: day >= 5,
+          isSelected: ctx.selectedTrackDayISO === cellISO,
+          hasData: cellMinutes > 0,
+          hoursLabel: cellMinutes > 0 ? fmtH(cellMinutes) : '',
+          earnLabel: cellMinutes / 60 >= shadeCap * 0.6 && cellEarn > 0 ? fmtEUR(cellEarn) : '',
+          pips: pipColors,
+          title: cellMinutes > 0 ? `${cellISO} · ${fmtH(cellMinutes)}` : cellISO,
+          onClick: () => onSelectTrackDay(cellISO),
         });
       }
-      heatmapWeeks.push(row);
+      weeks.push({
+        weekLabel: `W${isoWeekNumber(addDays(gridStart, week * 7))}`,
+        hoursLabel: weekMinutes > 0 ? fmtH(weekMinutes) : '',
+        days,
+      });
+    }
+
+    // Side panel: day detail when a day is selected, otherwise a month
+    // at-a-glance summary (top projects + weekly breakdown).
+    let panel: TrackDayPanelVM | TrackMonthGlanceVM;
+    const selectedISO = ctx.selectedTrackDayISO;
+    const selectedEntries = selectedISO ? (entriesByDate.get(selectedISO) ?? []) : [];
+    if (selectedISO && (selectedEntries.length > 0 || parseISO(selectedISO).getMonth() === monthIndex)) {
+      const selectedDate = parseISO(selectedISO);
+      const dayMinutes = selectedEntries.reduce((sum, entry) => sum + entry.minutes, 0);
+      const dayEarn = selectedEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
+      const entryRows: TrackDayEntryVM[] = selectedEntries
+        .slice()
+        .sort((a, b) => b.minutes - a.minutes)
+        .map((entry) => {
+          const customerName = ctx.custById[entry.customerId ?? '']?.name || '—';
+          return {
+            id: entry.id,
+            name: entry.kind === 'project'
+              ? (ctx.projById[entry.projectId ?? '']?.name || '—')
+              : entry.kind === 'service'
+                ? (ctx.serviceById[entry.serviceId ?? '']?.name || '—')
+                : customerName,
+            subLabel: entry.kind === 'project'
+              ? (ctx.custById[ctx.projById[entry.projectId ?? '']?.customerId ?? '']?.name || '—')
+              : entry.kind === 'service'
+                ? customerName
+                : 'Flat fee',
+            dotColor: colorForEntry(entry, ctx.projById, ctx.custById),
+            hoursLabel: entry.kind === 'customer' ? '' : fmtH(entry.minutes),
+            earnLabel: ctx.entryEarn(entry) > 0 ? fmtEUR(ctx.entryEarn(entry)) : '',
+            onClick: () => openEntry(entry, false),
+          };
+        });
+
+      panel = {
+        mode: 'day',
+        iso: selectedISO,
+        dateLabel: fmtFullDate(selectedDate),
+        hoursLabel: dayMinutes > 0 ? fmtH(dayMinutes) : '',
+        earnLabel: dayEarn > 0 ? fmtEUR(dayEarn) : '',
+        entries: entryRows,
+        onAddEntry: () => openNewEntryForDate(selectedISO),
+        onBack: () => onSelectTrackDay(selectedISO),
+      };
+    } else {
+      type ProjectSeed = {
+        key: string;
+        name: string;
+        subLabel: string;
+        dotColor: string;
+        minutes: number;
+        earn: number;
+      };
+      const projectSeeds = new Map<string, ProjectSeed>();
+      for (const entry of monthEntries) {
+        const key = entry.kind === 'project'
+          ? `project:${entry.projectId}`
+          : entry.kind === 'service'
+            ? `service:${entry.serviceId}:${entry.customerId}`
+            : `customer:${entry.customerId}`;
+        const customerName = ctx.custById[entry.customerId ?? '']?.name || '—';
+        const seed = projectSeeds.get(key) ?? {
+          key,
+          name: entry.kind === 'project'
+            ? (ctx.projById[entry.projectId ?? '']?.name || '—')
+            : entry.kind === 'service'
+              ? (ctx.serviceById[entry.serviceId ?? '']?.name || '—')
+              : customerName,
+          subLabel: entry.kind === 'project'
+            ? (ctx.custById[ctx.projById[entry.projectId ?? '']?.customerId ?? '']?.name || '—')
+            : entry.kind === 'service'
+              ? customerName
+              : 'Flat fee',
+          dotColor: colorForEntry(entry, ctx.projById, ctx.custById),
+          minutes: 0,
+          earn: 0,
+        };
+        seed.minutes += entry.minutes;
+        seed.earn += ctx.entryEarn(entry);
+        projectSeeds.set(key, seed);
+      }
+      const rankedProjects = [...projectSeeds.values()].sort((a, b) => b.minutes - a.minutes);
+      const topMinutes = rankedProjects[0]?.minutes || 1;
+      const topProjects: TrackMonthGlanceProjectVM[] = rankedProjects.slice(0, 5).map((seed) => ({
+        key: seed.key,
+        name: seed.name,
+        subLabel: seed.subLabel,
+        dotColor: seed.dotColor,
+        hoursLabel: seed.minutes > ctx.hpd * 60 ? fmtDays(seed.minutes, ctx.hpd) : fmtH(seed.minutes),
+        earnLabel: seed.earn > 0 ? fmtEUR(seed.earn) : '',
+        barPct: Math.round((seed.minutes / topMinutes) * 100),
+      }));
+
+      panel = {
+        mode: 'glance',
+        topProjects,
+        onAddEntry: () => openNewEntryForDate(
+          monthIndex === new Date().getMonth() && monthYear === new Date().getFullYear() ? ctx.todayISO : iso(new Date(monthYear, monthIndex, 1)),
+        ),
+      };
     }
 
     return {
-      matrix: {
-        dayHeaders,
-        rows,
-        dayTotals,
-        totalHoursLabel: fmtH(weekMinutes),
-        totalEarnLabel: fmtEUR(weekEarn),
-        onAddEntry: () => openNewEntryForDate(weekISOs.has(ctx.todayISO) ? ctx.todayISO : iso(weekStart)),
-      },
-      weekSummary: {
-        weekLabel: `Week ${isoWeekNumber(weekStart)}`,
-        hoursLabel: fmtH(weekMinutes),
-        daysLabel: (weekMinutes / 60 / ctx.hpd).toFixed(1),
-        earnLabel: fmtEUR(weekEarn),
-      },
-      monthHeatmap: {
+      calendar: {
         monthLabel: fmtMonthYear(monthRef),
-        weeks: heatmapWeeks,
-        dowLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        onPrevMonth: onHeatmapPrevMonth,
-        onNextMonth: onHeatmapNextMonth,
-        onPrevYear: onHeatmapPrevYear,
-        onNextYear: onHeatmapNextYear,
+        dowLabels,
+        weeks,
+        summary: {
+          hoursLabel: fmtH(monthMinutes),
+          daysLabel: (monthMinutes / 60 / ctx.hpd).toFixed(1),
+          earnLabel: fmtEUR(monthEarn),
+          entryCountLabel: `${monthEntries.length}`,
+        },
+        panel,
+        onPrevMonth: onCalendarPrevMonth,
+        onNextMonth: onCalendarNextMonth,
+        onPrevYear: onCalendarPrevYear,
+        onNextYear: onCalendarNextYear,
+        onToday: onCalendarToday,
       },
       accent: ctx.acc,
     };
-  }, [ctx, commitMatrixCell, openEntry, openNewEntryForDate, setRefISO, onHeatmapPrevMonth, onHeatmapNextMonth, onHeatmapPrevYear, onHeatmapNextYear]);
+  }, [ctx, openEntry, openNewEntryForDate, onSelectTrackDay, onCalendarPrevMonth, onCalendarNextMonth, onCalendarPrevYear, onCalendarNextYear, onCalendarToday]);
 
   const projectsProps = useMemo<ProjectsViewProps | null>(() => {
     if (!ctx.isProjects) {
