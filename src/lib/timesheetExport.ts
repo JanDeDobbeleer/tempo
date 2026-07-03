@@ -149,7 +149,11 @@ export async function buildTimesheetPdf(options: TimesheetExportOptions): Promis
   const drawTableHeader = () => {
     page.drawRectangle({ x: MARGIN, y: y - 6, width: CONTENT_WIDTH, height: 20, color: HEADER_BG });
     columns.forEach((column) => {
-      page.drawText(column.label, { x: column.x + 4, y: y, size: 9, font: bold, color: INK });
+      const labelWidth = bold.widthOfTextAtSize(column.label, 9);
+      const x = column.key === 'amount'
+        ? column.x + column.width - 4 - labelWidth
+        : column.x + 4;
+      page.drawText(column.label, { x, y, size: 9, font: bold, color: INK });
     });
     y -= 26;
   };
