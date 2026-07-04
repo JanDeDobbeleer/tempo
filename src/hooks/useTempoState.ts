@@ -1500,43 +1500,45 @@ export function useTempoState(settings: TempoSettings): TempoViewModel {
     return project ? (((entry.minutes) / 60) / hpd) * rateForDate(project.rates, entry.date) : 0;
   }, [hpd, projById, serviceById]);
 
-  const isCustomerDetail = state.page === 'customerDetail';
-  const isProjectDetail = state.page === 'projectDetail';
-  const isServiceDetail = state.page === 'serviceDetail';
-  const navSection: RenderCtx['navSection'] = isCustomerDetail
-    ? 'customers'
-    : isProjectDetail
-      ? (state.projectOrigin?.page === 'customerDetail' ? 'customers' : 'projects')
-      : isServiceDetail
-        ? 'services'
-        : (state.page === 'projects' || state.page === 'services' || state.page === 'customers' || state.page === 'settings' || state.page === 'export' || state.page === 'earnings' ? state.page : 'track');
+  const ctx: RenderCtx = useMemo(() => {
+    const isCustomerDetail = state.page === 'customerDetail';
+    const isProjectDetail = state.page === 'projectDetail';
+    const isServiceDetail = state.page === 'serviceDetail';
+    const navSection: RenderCtx['navSection'] = isCustomerDetail
+      ? 'customers'
+      : isProjectDetail
+        ? (state.projectOrigin?.page === 'customerDetail' ? 'customers' : 'projects')
+        : isServiceDetail
+          ? 'services'
+          : (state.page === 'projects' || state.page === 'services' || state.page === 'customers' || state.page === 'settings' || state.page === 'export' || state.page === 'earnings' ? state.page : 'track');
 
-  const ctx: RenderCtx = {
-    S: state,
-    acc: (settings.accentColor === '#2563eb' ? undefined : settings.accentColor) || '#1e5667',
-    hpd,
-    showWeekend: settings.showWeekend,
-    ref,
-    todayISO,
-    projById,
-    serviceById,
-    custById,
-    entryEarn,
-    isTrack: state.page === 'track',
-    isProjects: state.page === 'projects',
-    isServices: state.page === 'services',
-    isCustomers: state.page === 'customers',
-    isSettings: state.page === 'settings',
-    isCustomerDetail,
-    isProjectDetail,
-    isServiceDetail,
-    isExport: state.page === 'export',
-    isEarnings: state.page === 'earnings',
-    navSection,
-    calendarAnchor: calendarAnchorISO ? parseISO(calendarAnchorISO) : ref,
-    selectedTrackDayISO,
-    calendarFilterKey,
-  };
+    return {
+      S: state,
+      acc: (settings.accentColor === '#2563eb' ? undefined : settings.accentColor) || '#1e5667',
+      hpd,
+      showWeekend: settings.showWeekend,
+      ref,
+      todayISO,
+      projById,
+      serviceById,
+      custById,
+      entryEarn,
+      isTrack: state.page === 'track',
+      isProjects: state.page === 'projects',
+      isServices: state.page === 'services',
+      isCustomers: state.page === 'customers',
+      isSettings: state.page === 'settings',
+      isCustomerDetail,
+      isProjectDetail,
+      isServiceDetail,
+      isExport: state.page === 'export',
+      isEarnings: state.page === 'earnings',
+      navSection,
+      calendarAnchor: calendarAnchorISO ? parseISO(calendarAnchorISO) : ref,
+      selectedTrackDayISO,
+      calendarFilterKey,
+    };
+  }, [state, settings, hpd, ref, todayISO, projById, serviceById, custById, entryEarn, calendarAnchorISO, selectedTrackDayISO, calendarFilterKey]);
 
   const sidebarProps = useMemo<SidebarProps>(() => {
     const periodLabel = 'This month';
