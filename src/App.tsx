@@ -109,6 +109,25 @@ const App: FC = () => {
       </main>
 
       {isMobile && fabConfig && <Fab label={fabConfig.label} onClick={fabConfig.onClick} background={sidebarProps.accent} />}
+      {isMobile && showClock && clockProps && !modalOpen && !sidebarOpen && (
+        clockProps.timerStartMs
+          ? <Fab
+              label="Punch Out"
+              onClick={clockProps.onPunchOut}
+              background="#dc2626"
+              className="fab--secondary"
+            >
+              <span aria-hidden="true" style={{ fontSize: '22px', lineHeight: 1 }}>⏱️</span>
+            </Fab>
+          : <Fab
+              label="Punch"
+              onClick={clockProps.onPunch}
+              background={sidebarProps.accent}
+              className="fab--secondary"
+            >
+              <span aria-hidden="true" style={{ fontSize: '22px', lineHeight: 1 }}>⏱️</span>
+            </Fab>
+      )}
 
       {modalOpen && modalProps && <Modal {...modalProps} />}
     </div>

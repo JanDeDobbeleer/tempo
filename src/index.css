@@ -37,6 +37,7 @@ body,
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -53,6 +54,7 @@ body {
 .app-shell {
   height: 100vh;
   height: 100dvh;
+  overflow-x: hidden;
 }
 
 button,
@@ -332,6 +334,22 @@ textarea:focus-visible {
     z-index: 40;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   }
+
+  .fab--secondary {
+    display: flex;
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + var(--safe-bottom) + 56px + 12px);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    z-index: 40;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
 }
 
 /* Calendar mobile adaptations */
@@ -571,6 +589,7 @@ textarea:focus-visible {
     border-radius: 20px 20px 0 0 !important;
     max-height: 90dvh !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     /* Remove top padding — drag handle provides spacing */
     padding: 0 20px 20px !important;
     /* Respect iPhone home indicator */

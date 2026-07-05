@@ -92,6 +92,7 @@ const PunchButton: FC<{ timerStartMs: number | null; accent: string; onPunch: ()
         whiteSpace: 'nowrap', minHeight: '34px',
       }}
     >
+      <span style={{ fontSize: '14px', lineHeight: 1 }} aria-hidden="true">⏱️</span>
       Punch
     </button>
   )
@@ -320,15 +321,13 @@ const ClockView: FC<ClockViewProps> = ({ calendar, accent, timerStartMs, onPunch
     <div className="clock-view-shell" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
       <div className="clock-view-calendar" style={{ flex: 1.35, overflow: 'auto', background: '#ffffff', borderRight: '1px solid #e9ebef' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '18px 22px 32px' }}>
-          <div className="clock-summary" style={{ display: 'flex', alignItems: 'center', paddingBottom: '16px', marginBottom: '14px', borderBottom: '1px solid #eef0f3' }}>
-            <div style={{ display: 'flex', alignItems: 'stretch', flex: 1, minWidth: 0 }}>
-              <Stat label="Hours" value={calendar.summary.hoursLabel} first />
-              <Stat label="Billable days" value={calendar.summary.daysLabel} />
-              <Stat label="Earnings" value={calendar.summary.earnLabel} accent={accent} />
-              <Stat label="Entries" value={calendar.summary.entryCountLabel} />
-            </div>
+          <div className="clock-summary" style={{ display: 'flex', alignItems: 'stretch', paddingBottom: '16px', marginBottom: '14px', borderBottom: '1px solid #eef0f3' }}>
+            <Stat label="Hours" value={calendar.summary.hoursLabel} first />
+            <Stat label="Billable days" value={calendar.summary.daysLabel} />
+            <Stat label="Earnings" value={calendar.summary.earnLabel} accent={accent} />
+            <Stat label="Entries" value={calendar.summary.entryCountLabel} />
             {!isMobile && (
-              <div style={{ flexShrink: 0, paddingLeft: '22px' }}>
+              <div style={{ marginLeft: 'auto', paddingLeft: '22px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 <PunchButton timerStartMs={timerStartMs} accent={accent} onPunch={onPunch} onPunchOut={onPunchOut} />
               </div>
             )}
