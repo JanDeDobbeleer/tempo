@@ -187,9 +187,9 @@ textarea:focus-visible {
   background: #f8f9fb;
 }
 
-/* ── Track calendar-first view ──────────────────────────────────────────
+/* ── Clock calendar-first view ──────────────────────────────────────────
    Hover/selection/motion for the month grid and its side panel; structural
-   styles live inline in TrackView.tsx like the rest of the components. */
+   styles live inline in ClockView.tsx like the rest of the components. */
 .cal-cell {
   transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
   opacity: 0;
@@ -360,17 +360,17 @@ textarea:focus-visible {
     min-width: 560px;
   }
 
-  .track-view-shell {
+  .clock-view-shell {
     flex-direction: column !important;
     overflow: auto !important;
   }
 
-  .track-view-calendar {
+  .clock-view-calendar {
     flex: none !important;
     overflow: visible !important;
   }
 
-  .track-view-aside {
+  .clock-view-aside {
     width: 100% !important;
     border-left: none !important;
     border-top: 1px solid var(--color-border);
@@ -390,18 +390,18 @@ textarea:focus-visible {
     display: none !important;
   }
 
-  .track-summary {
+  .clock-summary {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     row-gap: 14px !important;
   }
 
-  .track-summary .track-stat {
+  .clock-summary .clock-stat {
     padding: 0 12px !important;
     border-left: 1px solid #eef0f3 !important;
   }
 
-  .track-summary .track-stat:nth-child(odd) {
+  .clock-summary .clock-stat:nth-child(odd) {
     border-left: none !important;
     padding-left: 0 !important;
   }

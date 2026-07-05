@@ -4,7 +4,7 @@ import { useIsMobile } from './hooks/useMediaQuery';
 import type { AppSettings } from './types';
 import Sidebar from './components/Sidebar';
 import AppHeader from './components/AppHeader';
-import TrackView from './components/TrackView';
+import ClockView from './components/ClockView';
 import ProjectsView from './components/ProjectsView';
 import ServicesView from './components/ServicesView';
 import CustomersView from './components/CustomersView';
@@ -31,7 +31,7 @@ const App: FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
   const {
-    showTrack,
+    showClock,
     showProjects,
     showServices,
     showCustomers,
@@ -44,7 +44,7 @@ const App: FC = () => {
     modalOpen,
     sidebarProps,
     headerProps,
-    trackProps,
+    clockProps,
     projectsProps,
     servicesProps,
     customersProps,
@@ -64,7 +64,7 @@ const App: FC = () => {
   }, [isMobile]);
 
   const fabConfig = !modalOpen && !sidebarOpen
-    ? headerProps.isTrack
+    ? headerProps.isClock
       ? { label: 'Add hours', onClick: headerProps.onNewEntry }
       : showProjects
         ? { label: 'New project', onClick: headerProps.onNewProject }
@@ -88,7 +88,7 @@ const App: FC = () => {
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
         />
 
-        {showTrack && trackProps && <TrackView {...trackProps} />}
+        {showClock && clockProps && <ClockView {...clockProps} />}
         {showProjects && projectsProps && <ProjectsView {...projectsProps} />}
         {showServices && servicesProps && <ServicesView {...servicesProps} />}
         {showCustomers && customersProps && <CustomersView {...customersProps} />}

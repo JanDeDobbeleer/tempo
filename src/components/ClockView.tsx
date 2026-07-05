@@ -1,5 +1,5 @@
 import { Fragment, useEffect, type CSSProperties, type FC } from 'react'
-import type { TrackCalendarVM, TrackMonthDayVM, TrackViewProps } from '../types'
+import type { ClockCalendarVM, ClockMonthDayVM, ClockViewProps } from '../types'
 import { addDays, iso, parseISO } from '../lib/dates'
 import { useIsMobile } from '../hooks/useMediaQuery'
 
@@ -22,7 +22,7 @@ const sectionLabelStyle: CSSProperties = {
 
 const Stat: FC<{ label: string; value: string; accent?: string; first?: boolean }> = ({ label, value, accent, first }) => (
   <div
-    className="track-stat"
+    className="clock-stat"
     style={{
       padding: first ? '0 22px 0 0' : '0 22px',
       display: 'flex',
@@ -51,7 +51,7 @@ const Stat: FC<{ label: string; value: string; accent?: string; first?: boolean 
 // One day cell in the month grid. Shading + pips encode hours logged and
 // which contexts were touched that day. Clicking selects the day into the
 // side panel; clicking the already-selected day returns to the glance state.
-const CalCell: FC<{ day: TrackMonthDayVM; accent: string }> = ({ day, accent }) => {
+const CalCell: FC<{ day: ClockMonthDayVM; accent: string }> = ({ day, accent }) => {
   const isOther = !day.isCurrentMonth
   return (
     <button
@@ -105,7 +105,7 @@ const CalCell: FC<{ day: TrackMonthDayVM; accent: string }> = ({ day, accent }) 
   )
 }
 
-const CalendarPanel: FC<{ calendar: TrackCalendarVM; accent: string }> = ({ calendar, accent }) => {
+const CalendarPanel: FC<{ calendar: ClockCalendarVM; accent: string }> = ({ calendar, accent }) => {
   const { panel } = calendar
 
   if (panel.mode === 'day') {
@@ -240,7 +240,7 @@ const CalendarPanel: FC<{ calendar: TrackCalendarVM; accent: string }> = ({ cale
   )
 }
 
-const TrackView: FC<TrackViewProps> = ({ calendar, accent }) => {
+const ClockView: FC<ClockViewProps> = ({ calendar, accent }) => {
   const isMobile = useIsMobile()
 
   // Arrow keys move the selected day when the calendar has focus. Only
@@ -270,10 +270,10 @@ const TrackView: FC<TrackViewProps> = ({ calendar, accent }) => {
   }, [calendar])
 
   return (
-    <div className="track-view-shell" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-      <div className="track-view-calendar" style={{ flex: 1.35, overflow: 'auto', background: '#ffffff', borderRight: '1px solid #e9ebef' }}>
+    <div className="clock-view-shell" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="clock-view-calendar" style={{ flex: 1.35, overflow: 'auto', background: '#ffffff', borderRight: '1px solid #e9ebef' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '18px 22px 32px' }}>
-          <div className="track-summary" style={{ display: 'flex', alignItems: 'stretch', paddingBottom: '16px', marginBottom: '14px', borderBottom: '1px solid #eef0f3' }}>
+          <div className="clock-summary" style={{ display: 'flex', alignItems: 'stretch', paddingBottom: '16px', marginBottom: '14px', borderBottom: '1px solid #eef0f3' }}>
             <Stat label="Hours" value={calendar.summary.hoursLabel} first />
             <Stat label="Billable days" value={calendar.summary.daysLabel} />
             <Stat label="Earnings" value={calendar.summary.earnLabel} accent={accent} />
@@ -314,7 +314,7 @@ const TrackView: FC<TrackViewProps> = ({ calendar, accent }) => {
       </div>
 
       <aside
-        className="track-view-aside"
+        className="clock-view-aside"
         style={{ width: '340px', flexShrink: 0, background: '#fbfcfd', display: 'flex', flexDirection: 'column', overflow: 'auto' }}
         tabIndex={-1}
       >
@@ -324,4 +324,4 @@ const TrackView: FC<TrackViewProps> = ({ calendar, accent }) => {
   )
 }
 
-export default TrackView
+export default ClockView

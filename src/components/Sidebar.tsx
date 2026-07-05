@@ -40,13 +40,13 @@ const SyncIcon: FC<{ status: SidebarProps['syncStatus'] }> = ({ status }) => {
 
 const Sidebar: FC<SidebarProps> = ({
   logoStyle,
-  navTrackStyle,
+  navClockStyle,
   navProjectsStyle,
   navServicesStyle,
   navCustomersStyle,
   navExportStyle,
   navEarningsStyle,
-  onNavTrack,
+  onNavClock,
   onNavProjects,
   onNavServices,
   onNavCustomers,
@@ -66,8 +66,8 @@ const Sidebar: FC<SidebarProps> = ({
   isOpen,
   onClose,
 }) => {
-  const handleNavTrack = () => {
-    onNavTrack();
+  const handleNavClock = () => {
+    onNavClock();
     onClose?.();
   };
 
@@ -130,12 +130,12 @@ const Sidebar: FC<SidebarProps> = ({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        <button type="button" className="nav-btn" style={navTrackStyle} onClick={handleNavTrack}>
+        <button type="button" className="nav-btn" style={navClockStyle} onClick={handleNavClock}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <circle cx="12" cy="12" r="8.5"></circle>
             <path d="M12 7.5V12l3 1.8"></path>
           </svg>
-          <span>Track</span>
+          <span>Clock</span>
         </button>
         <button type="button" className="nav-btn" style={navProjectsStyle} onClick={handleNavProjects}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

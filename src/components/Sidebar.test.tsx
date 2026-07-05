@@ -8,13 +8,13 @@ import type { SidebarProps } from '../types'
 function makeProps(overrides: Partial<SidebarProps> = {}): SidebarProps {
   return {
     logoStyle: {},
-    navTrackStyle: {},
+    navClockStyle: {},
     navProjectsStyle: {},
     navServicesStyle: {},
     navCustomersStyle: {},
     navExportStyle: {},
     navEarningsStyle: {},
-    onNavTrack: vi.fn(),
+    onNavClock: vi.fn(),
     onNavProjects: vi.fn(),
     onNavServices: vi.fn(),
     onNavCustomers: vi.fn(),
@@ -48,13 +48,13 @@ describe('Sidebar', () => {
 
   test('clicking a navigation item calls its handler and onClose', async () => {
     const user = userEvent.setup()
-    const onNavTrack = vi.fn()
+    const onNavClock = vi.fn()
     const onClose = vi.fn()
 
-    render(<Sidebar {...makeProps({ onNavTrack, onClose })} />)
-    await user.click(screen.getByRole('button', { name: 'Track' }))
+    render(<Sidebar {...makeProps({ onNavClock, onClose })} />)
+    await user.click(screen.getByRole('button', { name: 'Clock' }))
 
-    expect(onNavTrack).toHaveBeenCalledTimes(1)
+    expect(onNavClock).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 

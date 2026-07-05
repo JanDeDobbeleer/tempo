@@ -63,7 +63,7 @@ export interface Entry {
   attachments: AttachmentRef[];
 }
 
-export type Page = 'track' | 'projects' | 'services' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail' | 'serviceDetail' | 'export' | 'earnings';
+export type Page = 'clock' | 'projects' | 'services' | 'customers' | 'settings' | 'customerDetail' | 'projectDetail' | 'serviceDetail' | 'export' | 'earnings';
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'conflict';
 
 export type ModalType = 'entry' | 'customer';
@@ -139,13 +139,13 @@ export interface AppSettings {
 
 export interface SidebarProps {
   logoStyle: CSSProperties;
-  navTrackStyle: CSSProperties;
+  navClockStyle: CSSProperties;
   navProjectsStyle: CSSProperties;
   navServicesStyle: CSSProperties;
   navCustomersStyle: CSSProperties;
   navExportStyle: CSSProperties;
   navEarningsStyle: CSSProperties;
-  onNavTrack: () => void;
+  onNavClock: () => void;
   onNavProjects: () => void;
   onNavServices: () => void;
   onNavCustomers: () => void;
@@ -169,7 +169,7 @@ export interface SidebarProps {
 export interface AppHeaderProps {
   headerTitle: string;
   headerSubtitle: string;
-  isTrack: boolean;
+  isClock: boolean;
   isProjects: boolean;
   isServices: boolean;
   isCustomers: boolean;
@@ -198,8 +198,8 @@ export interface EntryDetailRowVM {
   onClick: () => void;
 }
 
-// One entry shown in the Track day-detail side panel for a selected day.
-export interface TrackDayEntryVM {
+// One entry shown in the Clock day-detail side panel for a selected day.
+export interface ClockDayEntryVM {
   id: string;
   name: string;              // project/service/customer name
   subLabel: string;          // customer name, "Flat fee", or a comment preview
@@ -209,11 +209,11 @@ export interface TrackDayEntryVM {
   onClick: () => void;       // opens the entry modal for editing
 }
 
-// One day cell in the Track month grid. Shading + pips encode hours logged
+// One day cell in the Clock month grid. Shading + pips encode hours logged
 // and which contexts (projects/services/customers) were touched that day.
 // Clicking selects the day into the side panel; clicking the selected day
 // again returns the panel to the month-at-a-glance state.
-export interface TrackMonthDayVM {
+export interface ClockMonthDayVM {
   iso: string;
   dayNum: number;
   isToday: boolean;
@@ -228,26 +228,26 @@ export interface TrackMonthDayVM {
   onClick: () => void;
 }
 
-export interface TrackWeekRowVM {
+export interface ClockWeekRowVM {
   weekLabel: string;         // e.g. "W27"
   hoursLabel: string;        // '' when the week is empty
   hasWeekendData: boolean;   // true when Sat or Sun has logged hours (shown as indicator on mobile)
-  days: TrackMonthDayVM[];
+  days: ClockMonthDayVM[];
 }
 
 // Side panel, day-detail state — shown once a day is selected.
-export interface TrackDayPanelVM {
+export interface ClockDayPanelVM {
   mode: 'day';
   iso: string;
   dateLabel: string;         // e.g. "Thursday, Jul 2"
   hoursLabel: string;
   earnLabel: string;
-  entries: TrackDayEntryVM[];
+  entries: ClockDayEntryVM[];
   onAddEntry: () => void;
   onBack: () => void;        // return to month-at-a-glance
 }
 
-export interface TrackMonthGlanceProjectVM {
+export interface ClockMonthGlanceProjectVM {
   key: string;
   name: string;
   subLabel: string;
@@ -260,9 +260,9 @@ export interface TrackMonthGlanceProjectVM {
 }
 
 // Side panel, month-at-a-glance state — the default when no day is selected.
-export interface TrackMonthGlanceVM {
+export interface ClockMonthGlanceVM {
   mode: 'glance';
-  topProjects: TrackMonthGlanceProjectVM[];
+  topProjects: ClockMonthGlanceProjectVM[];
   filterLabel: string | null;  // name of the active filter, null when unfiltered
   onClearFilter: () => void;
   onAddEntry: () => void;
@@ -270,26 +270,26 @@ export interface TrackMonthGlanceVM {
 
 // Summary stats for the month currently displayed in the calendar, shown in
 // a strip above the grid regardless of which side-panel state is active.
-export interface TrackMonthSummaryVM {
+export interface ClockMonthSummaryVM {
   hoursLabel: string;
   daysLabel: string;
   earnLabel: string;
   entryCountLabel: string;
 }
 
-export interface TrackCalendarVM {
+export interface ClockCalendarVM {
   monthLabel: string;        // e.g. "July 2026"
   dowLabels: string[];       // Mon..Sun column headers
-  weeks: TrackWeekRowVM[];
-  summary: TrackMonthSummaryVM;
-  panel: TrackDayPanelVM | TrackMonthGlanceVM;
+  weeks: ClockWeekRowVM[];
+  summary: ClockMonthSummaryVM;
+  panel: ClockDayPanelVM | ClockMonthGlanceVM;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onToday: () => void;
 }
 
-export interface TrackViewProps {
-  calendar: TrackCalendarVM;
+export interface ClockViewProps {
+  calendar: ClockCalendarVM;
   accent: string;
 }
 
@@ -584,7 +584,7 @@ export interface SettingsViewProps {
 // ─── the aggregate view-model returned by useAppState() ─────────────────
 
 export interface AppViewModel {
-  showTrack: boolean;
+  showClock: boolean;
   showProjects: boolean;
   showServices: boolean;
   showCustomers: boolean;
@@ -597,7 +597,7 @@ export interface AppViewModel {
   modalOpen: boolean;
   sidebarProps: SidebarProps;
   headerProps: AppHeaderProps;
-  trackProps: TrackViewProps | null;
+  clockProps: ClockViewProps | null;
   projectsProps: ProjectsViewProps | null;
   servicesProps: ServicesViewProps | null;
   customersProps: CustomersViewProps | null;

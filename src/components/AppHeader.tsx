@@ -4,7 +4,7 @@ import type { AppHeaderProps } from '../types'
 const AppHeader: FC<AppHeaderProps> = ({
   headerTitle,
   headerSubtitle,
-  isTrack,
+  isClock,
   isProjects,
   isServices,
   isCustomers,
@@ -90,7 +90,7 @@ const AppHeader: FC<AppHeaderProps> = ({
           overflowX: isMobile ? 'auto' : undefined,
         }}
       >
-        {isTrack && (
+        {isClock && (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button

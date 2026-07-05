@@ -7,9 +7,9 @@ import type { AppHeaderProps } from '../types'
 
 function makeProps(overrides: Partial<AppHeaderProps> = {}): AppHeaderProps {
   return {
-    headerTitle: 'Track',
+    headerTitle: 'Clock',
     headerSubtitle: 'Week of 1 Jul',
-    isTrack: true,
+    isClock: true,
     isProjects: false,
     isServices: false,
     isCustomers: false,
@@ -54,7 +54,7 @@ describe('AppHeader', () => {
     expect(onToggleSidebar).toHaveBeenCalledTimes(1)
   })
 
-  test('hides the primary track CTA on mobile and shows it on desktop', () => {
+  test('hides the primary clock CTA on mobile and shows it on desktop', () => {
     const { rerender } = render(<AppHeader {...makeProps({ isMobile: true })} />)
 
     expect(screen.queryByRole('button', { name: '+ Add hours' })).not.toBeInTheDocument()

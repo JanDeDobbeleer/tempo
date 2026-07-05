@@ -1,5 +1,5 @@
 // Earnings analytics helpers: pure aggregation over entries/projects/services/
-// customers already held in memory. Reuses the same formulas as Track/Export
+// customers already held in memory. Reuses the same formulas as Clock/Export
 // so numbers always match.
 
 import type { Customer, Entry, Project, Service } from '../types';

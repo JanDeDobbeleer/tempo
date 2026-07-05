@@ -40,13 +40,13 @@ import type {
   SyncStatus,
   AppSettings,
   AppViewModel,
-  TrackDayEntryVM,
-  TrackDayPanelVM,
-  TrackMonthDayVM,
-  TrackMonthGlanceProjectVM,
-  TrackMonthGlanceVM,
-  TrackWeekRowVM,
-  TrackViewProps,
+  ClockDayEntryVM,
+  ClockDayPanelVM,
+  ClockMonthDayVM,
+  ClockMonthGlanceProjectVM,
+  ClockMonthGlanceVM,
+  ClockWeekRowVM,
+  ClockViewProps,
 } from '../types';
 
 const PALETTE = ['#1e5667', '#0d9488', '#7c3aed', '#d97706', '#db2777', '#65a30d', '#0891b2', '#dc2626'];
@@ -112,7 +112,7 @@ type RenderCtx = {
   serviceById: Record<string, Service>;
   custById: Record<string, Customer>;
   entryEarn: (entry: Entry) => number;
-  isTrack: boolean;
+  isClock: boolean;
   isProjects: boolean;
   isServices: boolean;
   isCustomers: boolean;
@@ -122,9 +122,9 @@ type RenderCtx = {
   isServiceDetail: boolean;
   isExport: boolean;
   isEarnings: boolean;
-  navSection: 'track' | 'projects' | 'services' | 'customers' | 'settings' | 'export' | 'earnings';
+  navSection: 'clock' | 'projects' | 'services' | 'customers' | 'settings' | 'export' | 'earnings';
   calendarAnchor: Date;
-  selectedTrackDayISO: string | null;
+  selectedClockDayISO: string | null;
   calendarFilterKey: string | null;
 };
 
@@ -172,7 +172,7 @@ function createStateFromData(data: PersistedData, demoMode: boolean): AppState {
   const currentYear = today.getFullYear();
 
   return {
-    page: 'track',
+    page: 'clock',
     refISO: iso(today),
     customers: data.customers,
     projects: data.projects,
@@ -274,7 +274,7 @@ function createDemoSeed(): PersistedData {
 }
 
 // Demo data is considered stale when all its entries are older than 4 weeks.
-// In that case the seed is regenerated so the Track calendar never looks empty.
+// In that case the seed is regenerated so the Clock calendar never looks empty.
 function isDemoDataFresh(data: PersistedData): boolean {
   if (data.entries.length === 0) {
     return false;
@@ -354,14 +354,14 @@ export function useAppState(settings: AppSettings): AppViewModel {
   const skipNextPushRef = useRef(false);
   // Tracks which years are currently being fetched to prevent duplicate in-flight requests.
   const yearsLoadingRef = useRef<Set<number>>(new Set());
-  // The Track calendar's displayed month. `null` means "the month containing
+  // The Clock calendar's displayed month. `null` means "the month containing
   // today"; its own prev/next month/year controls move it independently.
   const [calendarAnchorISO, setCalendarAnchorISO] = useState<string | null>(null);
-  // The day selected in the Track calendar's side panel. `null` shows the
+  // The day selected in the Clock calendar's side panel. `null` shows the
   // month-at-a-glance state; selecting a day (or clicking it again) toggles
   // between the day-detail and glance states.
-  const [selectedTrackDayISO, setSelectedTrackDayISO] = useState<string | null>(null);
-  // The active filter key for the Track calendar (e.g. "project:xxx"). When set,
+  const [selectedClockDayISO, setSelectedClockDayISO] = useState<string | null>(null);
+  // The active filter key for the Clock calendar (e.g. "project:xxx"). When set,
   // the summary stats and cell data show only entries matching this key.
   const [calendarFilterKey, setCalendarFilterKey] = useState<string | null>(null);
 
@@ -412,8 +412,8 @@ export function useAppState(settings: AppSettings): AppViewModel {
   }, [openEntry]);
 
   const openNewEntry = useCallback(() => {
-    openNewEntryForDate(selectedTrackDayISO ?? stateRef.current.refISO);
-  }, [openNewEntryForDate, selectedTrackDayISO]);
+    openNewEntryForDate(selectedClockDayISO ?? stateRef.current.refISO);
+  }, [openNewEntryForDate, selectedClockDayISO]);
 
   const draftFromProject = useCallback((project: Project | null, customers: Customer[], presetCustomerId?: string): ProjectForm => (
     project
@@ -1230,7 +1230,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
           projects: demoData.projects,
           services: demoData.services,
           entries: demoData.entries,
-          page: 'track',
+          page: 'clock',
           modal: null,
           syncStatus: 'idle',
           loadedYears: [currentYear],
@@ -1254,7 +1254,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
         projects: emptyData.projects,
         services: emptyData.services,
         entries: emptyData.entries,
-        page: 'track',
+        page: 'clock',
         modal: null,
         syncStatus: 'idle',
         loadedYears: [currentYear],
@@ -1327,21 +1327,21 @@ export function useAppState(settings: AppSettings): AppViewModel {
       const base = current ? parseISO(current) : parseISO(stateRef.current.refISO);
       return iso(addMonths(base, months));
     });
-    setSelectedTrackDayISO(null);
+    setSelectedClockDayISO(null);
   }, []);
 
   const onCalendarPrevMonth = useCallback(() => shiftCalendarAnchor(-1), [shiftCalendarAnchor]);
   const onCalendarNextMonth = useCallback(() => shiftCalendarAnchor(1), [shiftCalendarAnchor]);
   const onCalendarToday = useCallback(() => {
     setCalendarAnchorISO(null);
-    setSelectedTrackDayISO(null);
+    setSelectedClockDayISO(null);
   }, []);
   const onSetCalendarFilter = useCallback((key: string) => {
     setCalendarFilterKey((prev) => (prev === key ? null : key));
   }, []);
   const onClearCalendarFilter = useCallback(() => setCalendarFilterKey(null), []);
-  const onSelectTrackDay = useCallback((dayISO: string) => {
-    setSelectedTrackDayISO((current) => (current === dayISO ? null : dayISO));
+  const onSelectClockDay = useCallback((dayISO: string) => {
+    setSelectedClockDayISO((current) => (current === dayISO ? null : dayISO));
   }, []);
 
   useEffect(() => {
@@ -1511,7 +1511,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
         ? (state.projectOrigin?.page === 'customerDetail' ? 'customers' : 'projects')
         : isServiceDetail
           ? 'services'
-          : (state.page === 'projects' || state.page === 'services' || state.page === 'customers' || state.page === 'settings' || state.page === 'export' || state.page === 'earnings' ? state.page : 'track');
+          : (state.page === 'projects' || state.page === 'services' || state.page === 'customers' || state.page === 'settings' || state.page === 'export' || state.page === 'earnings' ? state.page : 'clock');
 
     return {
       S: state,
@@ -1524,7 +1524,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
       serviceById,
       custById,
       entryEarn,
-      isTrack: state.page === 'track',
+      isClock: state.page === 'clock',
       isProjects: state.page === 'projects',
       isServices: state.page === 'services',
       isCustomers: state.page === 'customers',
@@ -1536,10 +1536,10 @@ export function useAppState(settings: AppSettings): AppViewModel {
       isEarnings: state.page === 'earnings',
       navSection,
       calendarAnchor: calendarAnchorISO ? parseISO(calendarAnchorISO) : ref,
-      selectedTrackDayISO,
+      selectedClockDayISO,
       calendarFilterKey,
     };
-  }, [state, settings, hpd, ref, todayISO, projById, serviceById, custById, entryEarn, calendarAnchorISO, selectedTrackDayISO, calendarFilterKey]);
+  }, [state, settings, hpd, ref, todayISO, projById, serviceById, custById, entryEarn, calendarAnchorISO, selectedClockDayISO, calendarFilterKey]);
 
   const sidebarProps = useMemo<SidebarProps>(() => {
     const periodLabel = 'This month';
@@ -1571,13 +1571,13 @@ export function useAppState(settings: AppSettings): AppViewModel {
         flexShrink: 0,
         boxShadow: `0 1px 4px color-mix(in srgb, ${ctx.acc} 50%, transparent)`,
       },
-      navTrackStyle: navStyle(ctx.navSection === 'track', ctx.acc),
+      navClockStyle: navStyle(ctx.navSection === 'clock', ctx.acc),
       navProjectsStyle: navStyle(ctx.navSection === 'projects', ctx.acc),
       navServicesStyle: navStyle(ctx.navSection === 'services', ctx.acc),
       navCustomersStyle: navStyle(ctx.navSection === 'customers', ctx.acc),
       navExportStyle: navStyle(ctx.navSection === 'export', ctx.acc),
       navEarningsStyle: navStyle(ctx.navSection === 'earnings', ctx.acc),
-      onNavTrack: () => setPage('track'),
+      onNavClock: () => setPage('clock'),
       onNavProjects: () => setPage('projects'),
       onNavServices: () => setPage('services'),
       onNavCustomers: () => setPage('customers'),
@@ -1623,7 +1623,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
 
     let headerTitle = 'Today';
     let headerSubtitle = '';
-    if (ctx.isTrack) {
+    if (ctx.isClock) {
       headerTitle = fmtMonthYear(monthRef);
       headerSubtitle = `${relMonth}${monthMinutes > 0 ? ` · ${fmtH(monthMinutes)} · ${fmtEUR(monthEarn)}` : ''}`;
     } else if (ctx.isProjects) {
@@ -1662,7 +1662,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
     return {
       headerTitle,
       headerSubtitle,
-      isTrack: ctx.isTrack,
+      isClock: ctx.isClock,
       isProjects: ctx.isProjects,
       isServices: ctx.isServices,
       isCustomers: ctx.isCustomers,
@@ -1701,7 +1701,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
       : 'You\'re browsing as a guest. Sign in with GitHub to save your data and sync it across devices.';
 
     return {
-      onBack: () => setPage('track'),
+      onBack: () => setPage('clock'),
       demoMode: ctx.S.demoMode,
       onToggleDemoMode,
       demoModeHint,
@@ -1719,8 +1719,8 @@ export function useAppState(settings: AppSettings): AppViewModel {
     };
   }, [ctx, onToggleDemoMode, pushStateNow, resetData, setPage, signIn, signOut]);
 
-  const trackProps = useMemo<TrackViewProps | null>(() => {
-    if (!ctx.isTrack) {
+  const clockProps = useMemo<ClockViewProps | null>(() => {
+    if (!ctx.isClock) {
       return null;
     }
 
@@ -1763,9 +1763,9 @@ export function useAppState(settings: AppSettings): AppViewModel {
     const shadeCap = ctx.hpd > 0 ? ctx.hpd * 1.25 : 1;
 
     // Month grid: 6 fixed rows so the layout never reflows month to month.
-    const weeks: TrackWeekRowVM[] = [];
+    const weeks: ClockWeekRowVM[] = [];
     for (let week = 0; week < 6; week += 1) {
-      const days: TrackMonthDayVM[] = [];
+      const days: ClockMonthDayVM[] = [];
       let weekMinutes = 0;
       let weekendMinutes = 0;
       for (let day = 0; day < 7; day += 1) {
@@ -1801,13 +1801,13 @@ export function useAppState(settings: AppSettings): AppViewModel {
           isToday,
           isCurrentMonth,
           isWeekend: day >= 5,
-          isSelected: ctx.selectedTrackDayISO === cellISO,
+          isSelected: ctx.selectedClockDayISO === cellISO,
           hasData: cellMinutes > 0,
           hoursLabel: cellMinutes > 0 ? fmtH(cellMinutes) : '',
           earnLabel: cellMinutes / 60 >= shadeCap * 0.6 && cellEarn > 0 ? fmtEUR(cellEarn) : '',
           pips: pipColors,
           title: cellMinutes > 0 ? `${cellISO} · ${fmtH(cellMinutes)}` : cellISO,
-          onClick: () => onSelectTrackDay(cellISO),
+          onClick: () => onSelectClockDay(cellISO),
         });
       }
       weeks.push({
@@ -1820,15 +1820,15 @@ export function useAppState(settings: AppSettings): AppViewModel {
 
     // Side panel: day detail when a day is selected, otherwise a month
     // at-a-glance summary (entries + weekly breakdown).
-    let panel: TrackDayPanelVM | TrackMonthGlanceVM;
-    const selectedISO = ctx.selectedTrackDayISO;
+    let panel: ClockDayPanelVM | ClockMonthGlanceVM;
+    const selectedISO = ctx.selectedClockDayISO;
     const allSelectedEntries = selectedISO ? (entriesByDate.get(selectedISO) ?? []) : [];
     const selectedEntries = filterKey ? allSelectedEntries.filter(matchesFilter) : allSelectedEntries;
     if (selectedISO && (selectedEntries.length > 0 || parseISO(selectedISO).getMonth() === monthIndex)) {
       const selectedDate = parseISO(selectedISO);
       const dayMinutes = selectedEntries.reduce((sum, entry) => sum + entry.minutes, 0);
       const dayEarn = selectedEntries.reduce((sum, entry) => sum + ctx.entryEarn(entry), 0);
-      const entryRows: TrackDayEntryVM[] = selectedEntries
+      const entryRows: ClockDayEntryVM[] = selectedEntries
         .slice()
         .sort((a, b) => b.minutes - a.minutes)
         .map((entry) => {
@@ -1860,7 +1860,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
         earnLabel: dayEarn > 0 ? fmtEUR(dayEarn) : '',
         entries: entryRows,
         onAddEntry: () => openNewEntryForDate(selectedISO),
-        onBack: () => onSelectTrackDay(selectedISO),
+        onBack: () => onSelectClockDay(selectedISO),
       };
     } else {
       type ProjectSeed = {
@@ -1897,7 +1897,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
       }
       const rankedProjects = [...projectSeeds.values()].sort((a, b) => b.minutes - a.minutes);
       const topMinutes = rankedProjects[0]?.minutes || 1;
-      const topProjects: TrackMonthGlanceProjectVM[] = rankedProjects.slice(0, 5).map((seed) => ({
+      const topProjects: ClockMonthGlanceProjectVM[] = rankedProjects.slice(0, 5).map((seed) => ({
         key: seed.key,
         name: seed.name,
         subLabel: seed.subLabel,
@@ -1942,7 +1942,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
       },
       accent: ctx.acc,
     };
-  }, [ctx, openEntry, openNewEntryForDate, onSelectTrackDay, onCalendarPrevMonth, onCalendarNextMonth, onCalendarToday, onSetCalendarFilter, onClearCalendarFilter]);
+  }, [ctx, openEntry, openNewEntryForDate, onSelectClockDay, onCalendarPrevMonth, onCalendarNextMonth, onCalendarToday, onSetCalendarFilter, onClearCalendarFilter]);
 
   const projectsProps = useMemo<ProjectsViewProps | null>(() => {
     if (!ctx.isProjects) {
@@ -2506,7 +2506,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
       entries: ctx.S.entries,
       hoursPerDay: ctx.hpd,
       initialScope: ctx.S.exportScope,
-      onBack: () => setPage('track'),
+      onBack: () => setPage('clock'),
     };
   }, [ctx, setPage]);
 
@@ -2522,12 +2522,12 @@ export function useAppState(settings: AppSettings): AppViewModel {
       entries: ctx.S.entries,
       hoursPerDay: ctx.hpd,
       initialFilter: ctx.S.earningsFilter,
-      onBack: () => setPage('track'),
+      onBack: () => setPage('clock'),
     };
   }, [ctx, setPage]);
 
   return {
-    showTrack: ctx.isTrack,
+    showClock: ctx.isClock,
     showProjects: ctx.isProjects,
     showServices: ctx.isServices,
     showCustomers: ctx.isCustomers,
@@ -2540,7 +2540,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
     modalOpen: Boolean(ctx.S.modal),
     sidebarProps,
     headerProps,
-    trackProps,
+    clockProps,
     projectsProps,
     servicesProps,
     customersProps,

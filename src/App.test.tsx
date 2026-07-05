@@ -22,8 +22,8 @@ vi.mock('./components/AppHeader', () => ({
   default: () => <div data-testid="app-header" />,
 }))
 
-vi.mock('./components/TrackView', () => ({
-  default: () => <div data-testid="track-view" />,
+vi.mock('./components/ClockView', () => ({
+  default: () => <div data-testid="clock-view" />,
 }))
 
 vi.mock('./components/ProjectsView', () => ({
@@ -79,7 +79,7 @@ const mockedUseIsMobile = vi.mocked(useIsMobile)
 
 function makeViewModel(overrides: Partial<AppViewModel> = {}): AppViewModel {
   return {
-    showTrack: true,
+    showClock: true,
     showProjects: false,
     showServices: false,
     showCustomers: false,
@@ -92,13 +92,13 @@ function makeViewModel(overrides: Partial<AppViewModel> = {}): AppViewModel {
     modalOpen: false,
     sidebarProps: {
       logoStyle: {},
-      navTrackStyle: {},
+      navClockStyle: {},
       navProjectsStyle: {},
       navServicesStyle: {},
       navCustomersStyle: {},
       navExportStyle: {},
       navEarningsStyle: {},
-      onNavTrack: vi.fn(),
+      onNavClock: vi.fn(),
       onNavProjects: vi.fn(),
       onNavServices: vi.fn(),
       onNavCustomers: vi.fn(),
@@ -117,9 +117,9 @@ function makeViewModel(overrides: Partial<AppViewModel> = {}): AppViewModel {
       onSignIn: vi.fn(),
     },
     headerProps: {
-      headerTitle: 'Track',
+      headerTitle: 'Clock',
       headerSubtitle: 'Week',
-      isTrack: true,
+      isClock: true,
       isProjects: false,
       isServices: false,
       isCustomers: false,
@@ -132,7 +132,7 @@ function makeViewModel(overrides: Partial<AppViewModel> = {}): AppViewModel {
       onNewService: vi.fn(),
       onNewCustomer: vi.fn(),
     },
-    trackProps: {
+    clockProps: {
       calendar: {
         monthLabel: 'July 2026',
         dowLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
@@ -165,7 +165,7 @@ describe('App FAB integration', () => {
     mockedUseAppState.mockImplementation((_settings: AppSettings) => makeViewModel())
   })
 
-  test('shows Add hours on mobile for the track week view', () => {
+  test('shows Add hours on mobile for the clock week view', () => {
     mockedUseAppState.mockReturnValue(makeViewModel())
 
     render(<App />)
@@ -175,14 +175,14 @@ describe('App FAB integration', () => {
 
   test('shows New project on the projects screen', () => {
     mockedUseAppState.mockReturnValue(makeViewModel({
-      showTrack: false,
+      showClock: false,
       showProjects: true,
       headerProps: {
         ...makeViewModel().headerProps,
-        isTrack: false,
+        isClock: false,
         isProjects: true,
       },
-      trackProps: null,
+      clockProps: null,
       projectsProps: { activeRows: [], closedRows: [], projEmpty: true },
     }))
 
@@ -193,14 +193,14 @@ describe('App FAB integration', () => {
 
   test('shows New service on the services screen', () => {
     mockedUseAppState.mockReturnValue(makeViewModel({
-      showTrack: false,
+      showClock: false,
       showServices: true,
       headerProps: {
         ...makeViewModel().headerProps,
-        isTrack: false,
+        isClock: false,
         isServices: true,
       },
-      trackProps: null,
+      clockProps: null,
       servicesProps: { serviceRows: [], serviceEmpty: true },
     }))
 
@@ -211,10 +211,10 @@ describe('App FAB integration', () => {
 
   test('hides the FAB on settings and detail screens', () => {
     const scenarios: AppViewModel[] = [
-      makeViewModel({ showTrack: false, showSettings: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, trackProps: null, settingsProps: {} as AppViewModel['settingsProps'] }),
-      makeViewModel({ showTrack: false, showCustomerDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, trackProps: null, customerDetailProps: {} as AppViewModel['customerDetailProps'] }),
-      makeViewModel({ showTrack: false, showProjectDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, trackProps: null, projectDetailProps: {} as AppViewModel['projectDetailProps'] }),
-      makeViewModel({ showTrack: false, showServiceDetail: true, headerProps: { ...makeViewModel().headerProps, isTrack: false }, trackProps: null, serviceDetailProps: {} as AppViewModel['serviceDetailProps'] }),
+      makeViewModel({ showClock: false, showSettings: true, headerProps: { ...makeViewModel().headerProps, isClock: false }, clockProps: null, settingsProps: {} as AppViewModel['settingsProps'] }),
+      makeViewModel({ showClock: false, showCustomerDetail: true, headerProps: { ...makeViewModel().headerProps, isClock: false }, clockProps: null, customerDetailProps: {} as AppViewModel['customerDetailProps'] }),
+      makeViewModel({ showClock: false, showProjectDetail: true, headerProps: { ...makeViewModel().headerProps, isClock: false }, clockProps: null, projectDetailProps: {} as AppViewModel['projectDetailProps'] }),
+      makeViewModel({ showClock: false, showServiceDetail: true, headerProps: { ...makeViewModel().headerProps, isClock: false }, clockProps: null, serviceDetailProps: {} as AppViewModel['serviceDetailProps'] }),
     ]
 
     for (const scenario of scenarios) {
