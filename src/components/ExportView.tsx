@@ -8,34 +8,36 @@ import { buildAttachmentsZip, buildTimesheetPdf, triggerDownload, type Timesheet
 
 const cardStyle: CSSProperties = {
   background: '#fff',
-  border: '1px solid #e9ebef',
+  border: '1px solid #e4e7eb',
   borderRadius: '14px',
   padding: '22px',
 };
 
-const labelStyle: CSSProperties = { display: 'block', fontSize: '12px', fontWeight: 500, color: '#626873', marginBottom: '6px' };
+const labelStyle: CSSProperties = { display: 'block', fontSize: '12px', fontWeight: 500, color: '#64748b', marginBottom: '6px' };
 
 const inputStyle: CSSProperties = {
   width: '100%',
   padding: '10px 12px',
-  border: '1px solid #d7dadf',
+  border: '1px solid #e2e8f0',
   borderRadius: '9px',
   fontSize: '14px',
-  color: '#1a1c20',
+  color: '#0f172a',
   background: '#fff',
   outline: 'none',
+  transition: 'border-color 0.15s ease',
 };
 
 const primaryButtonStyle: CSSProperties = {
   height: '44px',
   padding: '0 18px',
   border: 'none',
-  background: 'linear-gradient(45deg, #1e5667, color-mix(in srgb, #1e5667 68%, #ffffff))',
+  background: 'linear-gradient(135deg, #1e3a5f, color-mix(in srgb, #1e3a5f 72%, #2563eb))',
   color: '#fff',
-  borderRadius: '6px',
+  borderRadius: '8px',
   cursor: 'pointer',
   fontSize: '13.5px',
   fontWeight: 600,
+  letterSpacing: '-0.01em',
 };
 
 function slug(value: string): string {
@@ -174,18 +176,37 @@ const ExportView: FC<ExportViewProps> = ({ customers, projects, services, entrie
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
-      <div style={{ maxWidth: '820px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-          <div>
-            <div style={{ fontSize: '28px', fontWeight: 600, letterSpacing: '-0.03em' }}>Export timesheet</div>
-            <div style={{ marginTop: '4px', fontSize: '13px', color: '#626873' }}>
+      <div style={{ maxWidth: '820px', margin: '0 auto' }}>
+        <button
+          type="button"
+          className="back-btn"
+          onClick={onBack}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            border: 'none',
+            background: 'none',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: 500,
+            color: '#64748b',
+            padding: '0 0 18px',
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 6l-6 6 6 6"></path>
+          </svg>
+          Back
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div>
+            <div style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>Export timesheet</div>
+            <div style={{ marginTop: '4px', fontSize: '13px', color: '#64748b' }}>
               Generate a branded PDF timesheet and a zip of attachments to send with an invoice.
             </div>
           </div>
-          <button type="button" className="btn-ghost" style={{ ...primaryButtonStyle, background: '#fff', border: '1px solid rgba(192, 200, 208, 0.55)', color: '#3a3f48' }} onClick={onBack}>
-            ← Back
-          </button>
-        </div>
 
         <section style={cardStyle}>
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
@@ -260,7 +281,7 @@ const ExportView: FC<ExportViewProps> = ({ customers, projects, services, entrie
             <button
               type="button"
               className="btn-ghost"
-              style={{ ...primaryButtonStyle, background: '#fff', border: '1px solid rgba(192, 200, 208, 0.55)', color: '#3a3f48' }}
+              style={{ ...primaryButtonStyle, background: '#fff', border: '1px solid #e4e7eb', color: '#374151' }}
               onClick={() => void handleDownloadZip()}
               disabled={busy !== null || attachmentCount === 0}
             >
@@ -270,6 +291,7 @@ const ExportView: FC<ExportViewProps> = ({ customers, projects, services, entrie
 
           {message && <div style={{ marginTop: '12px', fontSize: '13px', color: '#dc2626' }}>{message}</div>}
         </section>
+        </div>
       </div>
     </div>
   );

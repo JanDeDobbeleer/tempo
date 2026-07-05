@@ -142,8 +142,8 @@ test.describe('Mobile – demo-mode screenshots for README', () => {
 
     // Sidebar should be overlaid over the calendar
     await expect(page.locator('#app-sidebar')).toBeVisible()
-    // The week summary widget inside the sidebar is visible
-    await expect(page.locator('#app-sidebar').getByText('THIS WEEK')).toBeVisible()
+    // The monthly summary widget inside the sidebar is visible
+    await expect(page.locator('#app-sidebar').getByText('This month')).toBeVisible()
 
     await page.screenshot({ path: shot('mobile-02-sidebar'), fullPage: false })
   })

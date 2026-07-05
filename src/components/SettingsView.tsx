@@ -4,7 +4,7 @@ import type { SettingsViewProps } from '../types';
 
 const cardStyle: CSSProperties = {
   background: '#fff',
-  border: '1px solid #e9ebef',
+  border: '1px solid #e4e7eb',
   borderRadius: '12px',
   padding: '22px',
 };
@@ -12,13 +12,13 @@ const cardStyle: CSSProperties = {
 const secondaryButtonStyle: CSSProperties = {
   height: '44px',
   padding: '0 14px',
-  border: '1px solid rgba(192, 200, 208, 0.55)',
+  border: '1px solid #e4e7eb',
   background: '#fff',
-  borderRadius: '6px',
+  borderRadius: '8px',
   cursor: 'pointer',
   fontSize: '13px',
   fontWeight: 600,
-  color: '#3a3f48',
+  color: '#374151',
 };
 
 const SettingsView: FC<SettingsViewProps> = ({
@@ -37,36 +37,49 @@ const SettingsView: FC<SettingsViewProps> = ({
   onDeleteAll,
 }) => (
   <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
-    <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-        <div>
-          <div style={{ fontSize: '28px', fontWeight: 600, letterSpacing: '-0.03em' }}>Settings</div>
-          <div style={{ marginTop: '4px', fontSize: '13px', color: '#626873' }}>
+    <div style={{ maxWidth: '880px', margin: '0 auto' }}>
+      <button
+        type="button"
+        className="back-btn"
+        onClick={onBack}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          border: 'none',
+          background: 'none',
+          cursor: 'pointer',
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#64748b',
+          padding: '0 0 18px',
+        }}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M15 6l-6 6 6 6"></path>
+        </svg>
+        Back
+      </button>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div>
+          <div style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>Settings</div>
+          <div style={{ marginTop: '4px', fontSize: '13px', color: '#64748b' }}>
             Manage demo mode, Azure sync and local data.
           </div>
         </div>
-
-        <button
-          type="button"
-          className="btn-ghost"
-          style={{ ...secondaryButtonStyle, padding: '0 16px' }}
-          onClick={onBack}
-        >
-          ← Back
-        </button>
-      </div>
 
       <section style={cardStyle}>
         <div style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}>Demo mode</div>
         <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 500 }}>Use sample Tempo data</div>
-            <div style={{ marginTop: '6px', fontSize: '13px', color: '#626873', lineHeight: 1.65 }}>{demoModeHint}</div>
+            <div style={{ marginTop: '6px', fontSize: '13px', color: '#64748b', lineHeight: 1.65 }}>{demoModeHint}</div>
           </div>
 
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flexShrink: 0 }}>
             <input type="checkbox" checked={demoMode} onChange={onToggleDemoMode} />
-            <span style={{ fontSize: '13px', fontWeight: 500, color: demoMode ? '#0d1e2e' : '#626873' }}>
+            <span style={{ fontSize: '13px', fontWeight: 500, color: demoMode ? '#0f172a' : '#64748b' }}>
               {demoMode ? 'On' : 'Off'}
             </span>
           </label>
@@ -77,13 +90,13 @@ const SettingsView: FC<SettingsViewProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}>Azure sync</div>
-            <div style={{ marginTop: '5px', fontSize: '13px', color: '#626873' }}>
+            <div style={{ marginTop: '5px', fontSize: '13px', color: '#64748b' }}>
               Your data is stored in Azure Blob Storage behind the /api/state endpoint, protected by GitHub sign-in.
             </div>
           </div>
 
           {syncDisabled && (
-            <div style={{ fontSize: '12.5px', color: '#9ca3af' }}>Disabled while demo mode is active.</div>
+            <div style={{ fontSize: '12.5px', color: '#94a3b8' }}>Disabled while demo mode is active.</div>
           )}
         </div>
 
@@ -98,15 +111,15 @@ const SettingsView: FC<SettingsViewProps> = ({
                   alignItems: 'center',
                   padding: '14px 16px',
                   borderRadius: '10px',
-                  border: '1px solid #eef0f3',
-                  background: '#fbfcfd',
+                  border: '1px solid #e4e7eb',
+                  background: '#f8fafc',
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#9ca3af', fontFamily: "'Geist Mono',monospace" }}>
+                  <div style={{ fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#94a3b8', fontFamily: "'Geist Mono',monospace" }}>
                     Signed in as
                   </div>
-                  <div style={{ marginTop: '4px', fontSize: '13px', fontFamily: "'Geist Mono',monospace", color: '#0d1e2e' }}>
+                  <div style={{ marginTop: '4px', fontSize: '13px', fontFamily: "'Geist Mono',monospace", color: '#0f172a' }}>
                     {signedInAs || 'Unknown'}
                   </div>
                 </div>
@@ -118,7 +131,7 @@ const SettingsView: FC<SettingsViewProps> = ({
                 <button
                   type="button"
                  className="btn-primary"
-                 style={{ ...secondaryButtonStyle, background: 'linear-gradient(45deg, #1e5667, color-mix(in srgb, #1e5667 68%, #ffffff))', borderColor: '#1e5667', color: '#fff' }}
+                 style={{ ...secondaryButtonStyle, background: 'linear-gradient(135deg, #1e3a5f, color-mix(in srgb, #1e3a5f 72%, #2563eb))', borderColor: '#1e3a5f', color: '#fff' }}
                  onClick={onSyncNow}
                 >
                  Sync now
@@ -138,17 +151,17 @@ const SettingsView: FC<SettingsViewProps> = ({
                 flexWrap: 'wrap',
                 padding: '14px 16px',
                 borderRadius: '10px',
-                border: '1px solid #eef0f3',
-                background: '#fbfcfd',
+                border: '1px solid #e4e7eb',
+                background: '#f8fafc',
               }}
             >
-              <div style={{ fontSize: '13px', color: '#626873' }}>
+              <div style={{ fontSize: '13px', color: '#64748b' }}>
                 Sign in with GitHub to sync your data with Azure.
               </div>
               <button
                 type="button"
                 className="btn-primary"
-                style={{ ...secondaryButtonStyle, background: 'linear-gradient(45deg, #1e5667, color-mix(in srgb, #1e5667 68%, #ffffff))', borderColor: '#1e5667', color: '#fff', flexShrink: 0 }}
+                style={{ ...secondaryButtonStyle, background: 'linear-gradient(135deg, #1e3a5f, color-mix(in srgb, #1e3a5f 72%, #2563eb))', borderColor: '#1e3a5f', color: '#fff', flexShrink: 0 }}
                 onClick={onSignIn}
               >
                 Sign in with GitHub
@@ -178,6 +191,7 @@ const SettingsView: FC<SettingsViewProps> = ({
           Delete all data
         </button>
       </section>
+      </div>
     </div>
   </div>
 );

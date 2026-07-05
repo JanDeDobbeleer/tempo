@@ -26,7 +26,7 @@ const AppHeader: FC<AppHeaderProps> = ({
         minHeight: '68px',
         flexShrink: 0,
         background: '#ffffff',
-        borderBottom: '1px solid #e9ebef',
+        borderBottom: '1px solid #e4e7eb',
         display: 'flex',
         alignItems: isMobile ? 'stretch' : 'center',
         justifyContent: isMobile ? 'flex-start' : 'space-between',
@@ -50,11 +50,11 @@ const AppHeader: FC<AppHeaderProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '1px solid #e2e4e8',
+              border: '1px solid #e4e7eb',
               background: '#fff',
               borderRadius: '8px',
               cursor: 'pointer',
-              color: '#3a3f48',
+              color: '#374151',
               padding: 0,
             }}
           >
@@ -67,8 +67,8 @@ const AppHeader: FC<AppHeaderProps> = ({
           <div
             style={{
               fontSize: '18px',
-              fontWeight: 600,
-              letterSpacing: '-0.01em',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -76,7 +76,7 @@ const AppHeader: FC<AppHeaderProps> = ({
           >
             {headerTitle}
           </div>
-          <div style={{ fontSize: '12.5px', color: '#9ca3af', marginTop: '1px' }}>{headerSubtitle}</div>
+          <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '1px' }}>{headerSubtitle}</div>
         </div>
       </div>
 
@@ -101,11 +101,11 @@ const AppHeader: FC<AppHeaderProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: '1px solid #e2e4e8',
+                  border: '1px solid #e4e7eb',
                   background: '#fff',
                   borderRadius: '8px',
                   cursor: 'pointer',
-                  color: '#3a3f48',
+                  color: '#374151',
                 }}
                 onClick={onPrev}
               >
@@ -118,13 +118,13 @@ const AppHeader: FC<AppHeaderProps> = ({
                 style={{
                   height: '44px',
                   padding: '0 13px',
-                  border: '1px solid #e2e4e8',
+                  border: '1px solid #e4e7eb',
                   background: '#fff',
                   borderRadius: '8px',
                   cursor: 'pointer',
                   fontSize: '13px',
                   fontWeight: 500,
-                  color: '#3a3f48',
+                  color: '#374151',
                 }}
                 onClick={onToday}
               >
@@ -138,11 +138,11 @@ const AppHeader: FC<AppHeaderProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: '1px solid #e2e4e8',
+                  border: '1px solid #e4e7eb',
                   background: '#fff',
                   borderRadius: '8px',
                   cursor: 'pointer',
-                  color: '#3a3f48',
+                  color: '#374151',
                 }}
                 onClick={onNext}
               >

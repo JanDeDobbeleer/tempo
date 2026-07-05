@@ -168,20 +168,35 @@ const EarningsView: FC<EarningsViewProps> = ({ customers, projects, services, en
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-          <div>
-            <div style={{ fontSize: '28px', fontWeight: 600, letterSpacing: '-0.03em' }}>Earnings</div>
-            <div style={{ marginTop: '4px', fontSize: '13px', color: '#626873' }}>{periodLabel}</div>
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        <button
+          type="button"
+          className="back-btn"
+          onClick={onBack}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            border: 'none',
+            background: 'none',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: 500,
+            color: '#64748b',
+            padding: '0 0 18px',
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 6l-6 6 6 6"></path>
+          </svg>
+          Back
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div>
+            <div style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>Earnings</div>
+            <div style={{ marginTop: '4px', fontSize: '13px', color: '#64748b' }}>{periodLabel}</div>
           </div>
-          <button
-            type="button"
-            style={{ height: '40px', padding: '0 18px', border: '1px solid #e2e4e8', background: '#fff', color: '#3a3f48', borderRadius: '9px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 600 }}
-            onClick={onBack}
-          >
-            ← Back
-          </button>
-        </div>
 
         <section style={cardStyle}>
           <div className="pill-group" style={pillGroupStyle}>
@@ -338,6 +353,7 @@ const EarningsView: FC<EarningsViewProps> = ({ customers, projects, services, en
             </div>
           )}
         </section>
+        </div>
       </div>
     </div>
   );

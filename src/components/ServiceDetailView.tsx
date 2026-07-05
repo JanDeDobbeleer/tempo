@@ -27,6 +27,7 @@ const ServiceDetailView: FC<ServiceDetailViewProps> = ({
     <div style={{ maxWidth: '720px', margin: '0 auto' }}>
       <button
         type="button"
+        className="back-btn"
         onClick={onBack}
         style={{
           display: 'flex',
@@ -37,7 +38,7 @@ const ServiceDetailView: FC<ServiceDetailViewProps> = ({
           cursor: 'pointer',
           fontSize: '13px',
           fontWeight: 500,
-          color: '#626873',
+          color: '#64748b',
           padding: '0 0 18px',
         }}
       >

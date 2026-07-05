@@ -81,7 +81,7 @@ const App: FC = () => {
       <Sidebar {...sidebarProps} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {isMobile && sidebarOpen && <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />}
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#f5f6f8' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--color-background)' }}>
         <AppHeader
           {...headerProps}
           isMobile={isMobile}

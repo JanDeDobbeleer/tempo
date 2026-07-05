@@ -26,6 +26,7 @@ const CustomerDetailView: FC<CustomerDetailViewProps> = ({
     <div style={{ maxWidth: '820px', margin: '0 auto' }}>
       <button
         type="button"
+        className="back-btn"
         onClick={onBack}
         style={{
           display: 'flex',
@@ -36,7 +37,7 @@ const CustomerDetailView: FC<CustomerDetailViewProps> = ({
           cursor: 'pointer',
           fontSize: '13px',
           fontWeight: 500,
-          color: '#626873',
+          color: '#64748b',
           padding: '0 0 18px',
         }}
       >

@@ -1,6 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Geist+Mono:wght@400;500&display=swap');
 
 :root {
+  /* ── Design tokens ──────────────────────────────────────────────────── */
+  --color-primary: #1e3a5f;
+  --color-secondary: #2563eb;
+  --color-accent: #059669;
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-surface: #ffffff;
+  --color-muted: #f1f5f9;
+  --color-border: #e4e7eb;
+  --color-text: #1a2332;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-destructive: #dc2626;
+  --color-ring: #2563eb;
+
+  /* ── Layout ─────────────────────────────────────────────────────────── */
   --touch-min: 44px;
   --sidebar-w: 236px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -24,9 +40,9 @@ body,
 }
 
 body {
-  font-family: 'Geist', -apple-system, system-ui, sans-serif;
-  color: #0d1e2e;
-  background: #f6f8fb;
+  font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
+  color: var(--color-text);
+  background: var(--color-background);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -51,7 +67,7 @@ textarea {
    brightness on coloured primary buttons, shadow on ghost buttons.
    The transition is declared on the element so both enter and exit animate. */
 button {
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.14s ease, box-shadow 0.14s ease, background-color 0.12s ease;
 }
 
 button:not(:disabled):hover {
@@ -64,7 +80,7 @@ button:not(:disabled):active {
 }
 
 button:focus-visible {
-  outline: 2px solid #1e5667;
+  outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
 
@@ -79,6 +95,51 @@ button:focus-visible {
   background: #fafbfc !important;
 }
 
+/* ── Navigation button micro-interactions ───────────────────────────────
+   Sidebar nav items use .nav-btn for hover/transition; the background and
+   color at rest are set inline (active vs inactive), so we only add the
+   transition and a subtle hover fill here. */
+.nav-btn {
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.12s ease !important;
+}
+
+.nav-btn:not(:disabled):hover {
+  background-color: rgba(30, 58, 95, 0.07) !important;
+  transform: none !important;
+}
+
+.nav-btn:not(:disabled):active {
+  background-color: rgba(30, 58, 95, 0.12) !important;
+  transform: none !important;
+}
+
+/* ── Back navigation button ─────────────────────────────────────────────
+   Ghost text link used as the uniform "go back" control on all detail and
+   full-page views (Export, Earnings, Settings, Project, Customer, Service).
+   The global button transform is suppressed; only the color fades in. */
+.back-btn {
+  transition: color 0.12s ease !important;
+}
+
+.back-btn:not(:disabled):hover {
+  color: #1e3a5f !important;
+  transform: none !important;
+}
+
+.back-btn:not(:disabled):active {
+  transform: none !important;
+}
+
+/* ── Input / select / textarea focus ────────────────────────────────────
+   Provide a consistent accent-ring focus style matching buttons. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+  border-color: var(--color-ring) !important;
+}
+
 /* Touch feedback: hover-only affordances (below) don't fire on touch, so
    provide an :active equivalent for tappable rows/cells/blocks. */
 .entry-block:active,
@@ -88,7 +149,7 @@ button:focus-visible {
 }
 
 ::selection {
-  background: #dbe4f5;
+  background: #dbeafe;
 }
 
 ::-webkit-scrollbar {
@@ -97,14 +158,14 @@ button:focus-visible {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #dadde2;
+  background: #cbd5e1;
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #c4c8ce;
+  background: #94a3b8;
   background-clip: content-box;
 }
 
@@ -312,7 +373,7 @@ button:focus-visible {
   .track-view-aside {
     width: 100% !important;
     border-left: none !important;
-    border-top: 1px solid #eef0f3;
+    border-top: 1px solid var(--color-border);
     overflow: visible !important;
     flex: none !important;
   }
