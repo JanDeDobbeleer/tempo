@@ -1,12 +1,12 @@
-// GET  /api/state                 -> returns config + current year's entries from tempo.json.
+// GET  /api/state                 -> returns config + current year's entries from state.json.
 //                                     Filters out entries from past years transparently, enabling
 //                                     gradual migration from single-blob to per-year blobs.
-// GET  /api/state?year=YYYY       -> returns entries for that year from tempo.YYYY.json.
+// GET  /api/state?year=YYYY       -> returns entries for that year from state.YYYY.json.
 //                                     Used for lazy-loading past year data on demand.
-// PUT  /api/state                 -> saves config + current year entries to tempo.json.
+// PUT  /api/state                 -> saves config + current year entries to state.json.
 //                                     On first write after migration, archives any past-year
-//                                     entries found in the existing blob to tempo.YYYY.json files.
-// PUT  /api/state?year=YYYY       -> saves entries to tempo.YYYY.json.
+//                                     entries found in the existing blob to state.YYYY.json files.
+// PUT  /api/state?year=YYYY       -> saves entries to state.YYYY.json.
 //                                     Uses ETag / If-Match for optimistic concurrency like the main blob.
 
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions';
@@ -41,7 +41,7 @@ function entryYear(entry: unknown): number {
 }
 
 function yearBlobName(year: number): string {
-  return `tempo.${year}.json`;
+  return `state.${year}.json`;
 }
 
 const EMPTY_STATE: PersistedData = { customers: [], projects: [], services: [], entries: [] };

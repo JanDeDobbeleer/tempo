@@ -10,9 +10,9 @@ A personal time-tracking app for freelancers and independent consultants. Log ho
 
 ### Desktop
 
-| Track | Day detail | Projects |
+| Clock | Day detail | Projects |
 |---|---|---|
-| ![Track view](docs/screenshots/01-track.png) | ![Day detail panel](docs/screenshots/02-track-day-panel.png) | ![Projects view](docs/screenshots/03-projects.png) |
+| ![Clock view](docs/screenshots/01-clock.png) | ![Day detail panel](docs/screenshots/02-clock-day-panel.png) | ![Projects view](docs/screenshots/03-projects.png) |
 
 | Customers | Services | Settings |
 |---|---|---|
@@ -22,7 +22,7 @@ A personal time-tracking app for freelancers and independent consultants. Log ho
 
 | Calendar | Drawer | Day detail |
 |---|---|---|
-| <img src="docs/screenshots/mobile-01-track.png" width="240"> | <img src="docs/screenshots/mobile-02-sidebar.png" width="240"> | <img src="docs/screenshots/mobile-03-day-panel.png" width="240"> |
+| <img src="docs/screenshots/mobile-01-clock.png" width="240"> | <img src="docs/screenshots/mobile-02-sidebar.png" width="240"> | <img src="docs/screenshots/mobile-03-day-panel.png" width="240"> |
 
 ---
 

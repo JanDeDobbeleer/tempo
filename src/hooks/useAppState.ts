@@ -815,7 +815,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
       return;
     }
 
-    // Split entries by year: current year goes to tempo.json (with config),
+    // Split entries by year: current year goes to state.json (with config),
     // each other loaded year goes to its own tempo.YYYY.json blob.
     const currentYear = new Date().getFullYear();
     const entriesByYear = new Map<number, Entry[]>();

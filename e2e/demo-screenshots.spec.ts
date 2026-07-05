@@ -14,8 +14,9 @@ async function loadDemoMode(page: import('@playwright/test').Page) {
 
   // Start from a clean slate on every test run so the seed is always fresh.
   await page.evaluate(() => {
+    window.localStorage.removeItem('demo.v1')
     window.localStorage.removeItem('tempo.demo.v1')
-    window.localStorage.setItem('tempo.demoMode', '1')
+    window.localStorage.setItem('demoMode', '1')
   })
 
   // Full reload so the hook picks up the flag and generates a fresh seed.
@@ -55,16 +56,16 @@ function firstInMonthEntryDate(): string {
 test.describe('Desktop – demo-mode screenshots for README', () => {
   test.use({ viewport: { width: 1280, height: 800 } })
 
-  test('01 – Track view month calendar', async ({ page }) => {
+  test('01 – Clock view month calendar', async ({ page }) => {
     await loadDemoMode(page)
 
     await expect(page.locator('main')).toBeVisible()
     await expect(page.getByText('HOURS').first()).toBeVisible()
 
-    await page.screenshot({ path: shot('01-track'), fullPage: false })
+    await page.screenshot({ path: shot('01-clock'), fullPage: false })
   })
 
-  test('02 – Track view day detail panel', async ({ page }) => {
+  test('02 – Clock view day detail panel', async ({ page }) => {
     await loadDemoMode(page)
 
     const dateISO = firstInMonthEntryDate()
@@ -76,7 +77,7 @@ test.describe('Desktop – demo-mode screenshots for README', () => {
 
     await expect(page.locator('text=‹ Month overview')).toBeVisible()
 
-    await page.screenshot({ path: shot('02-track-day-panel'), fullPage: false })
+    await page.screenshot({ path: shot('02-clock-day-panel'), fullPage: false })
   })
 
   test('03 – Projects view', async ({ page }) => {
@@ -124,14 +125,14 @@ test.describe('Mobile – demo-mode screenshots for README', () => {
   const { defaultBrowserType: _drop, ...iphone13 } = devices['iPhone 13']
   test.use(iphone13)
 
-  test('mobile-01 – Track calendar', async ({ page }) => {
+  test('mobile-01 – Clock calendar', async ({ page }) => {
     await loadDemoMode(page)
 
     await expect(page.locator('main')).toBeVisible()
     await expect(page.getByText('HOURS').first()).toBeVisible()
 
     // Full-page so the FAB at the bottom is visible
-    await page.screenshot({ path: shot('mobile-01-track'), fullPage: true })
+    await page.screenshot({ path: shot('mobile-01-clock'), fullPage: true })
   })
 
   test('mobile-02 – Sidebar drawer open', async ({ page }) => {

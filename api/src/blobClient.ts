@@ -1,6 +1,6 @@
 // Shared Azure Blob Storage client for the API.
 // A single storage account backs two containers:
-//   - "state": one JSON document (tempo.json) holding the whole app state.
+//   - "state": one JSON document (state.json) holding the whole app state.
 //   - "attachments": files referenced by entries, keyed by "<entryId>/<attachmentId>-<fileName>".
 //
 // Auth to Storage uses a connection string in local dev and a managed identity
@@ -12,7 +12,7 @@ import { DefaultAzureCredential } from '@azure/identity';
 
 const STATE_CONTAINER = process.env.STATE_CONTAINER ?? process.env.TEMPO_STATE_CONTAINER ?? 'state';
 const ATTACHMENTS_CONTAINER = process.env.ATTACHMENTS_CONTAINER ?? process.env.TEMPO_ATTACHMENTS_CONTAINER ?? 'attachments';
-export const STATE_BLOB_NAME = 'tempo.json';
+export const STATE_BLOB_NAME = 'state.json';
 
 let cachedClient: BlobServiceClient | null = null;
 
