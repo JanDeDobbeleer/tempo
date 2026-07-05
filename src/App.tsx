@@ -108,7 +108,7 @@ const App: FC = () => {
         )}
       </main>
 
-      {isMobile && fabConfig && <Fab label={fabConfig.label} onClick={fabConfig.onClick} />}
+      {isMobile && fabConfig && <Fab label={fabConfig.label} onClick={fabConfig.onClick} background={sidebarProps.accent} />}
 
       {modalOpen && modalProps && <Modal {...modalProps} />}
     </div>

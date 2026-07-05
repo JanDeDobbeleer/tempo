@@ -54,7 +54,12 @@ function firstInMonthEntryDate(): string {
 // ─── Desktop screenshots ─────────────────────────────────────────────────────
 
 test.describe('Desktop – demo-mode screenshots for README', () => {
-  test.use({ viewport: { width: 1280, height: 800 } })
+  test.use({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
+
+  test.beforeEach(async ({}, testInfo) => {
+    // Only run in the Desktop Playwright project — skip when Mobile project picks this up.
+    if (testInfo.project.name !== 'Desktop') test.skip()
+  })
 
   test('01 – Clock view month calendar', async ({ page }) => {
     await loadDemoMode(page)
@@ -124,6 +129,11 @@ test.describe('Mobile – demo-mode screenshots for README', () => {
   // iPhone 13 device settings minus defaultBrowserType (not allowed in describe)
   const { defaultBrowserType: _drop, ...iphone13 } = devices['iPhone 13']
   test.use(iphone13)
+
+  test.beforeEach(async ({}, testInfo) => {
+    // Only run in the Mobile Playwright project.
+    if (testInfo.project.name !== 'Mobile') test.skip()
+  })
 
   test('mobile-01 – Clock calendar', async ({ page }) => {
     await loadDemoMode(page)
