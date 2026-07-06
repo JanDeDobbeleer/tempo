@@ -110,6 +110,12 @@ Before considering any UI task complete, verify:
 
 Run `npm run test:e2e` — the Playwright suite includes viewport tests.
 
+To generate demo screenshots (desktop + mobile, saved to `docs/screenshots/`), run:
+
+```
+npx playwright test e2e/demo-screenshots.spec.ts --project=Desktop --project=Mobile
+```
+
 See also: `.github/skills/mobile-layout/SKILL.md` for the full mobile
 contract including CSS class names, FAB rules, and common mistakes.
 
