@@ -296,6 +296,10 @@ textarea:focus-visible {
   color: #ffffff;
 }
 
+.fab--secondary {
+  color: #ffffff;
+}
+
 .drawer-backdrop {
   position: fixed;
   inset: 0;

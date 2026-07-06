@@ -14,6 +14,7 @@ import ServiceDetailView from './components/ServiceDetailView';
 import SettingsView from './components/SettingsView';
 import Modal from './components/Modal';
 import Fab from './components/Fab';
+import PunchIcon from './components/PunchIcon';
 
 // Loaded on demand: pulls in pdf-lib/jszip, which are only needed once the
 // user actually opens the export page.
@@ -117,7 +118,7 @@ const App: FC = () => {
               background="#dc2626"
               className="fab--secondary"
             >
-              <span aria-hidden="true" style={{ fontSize: '22px', lineHeight: 1 }}>⏱️</span>
+              <PunchIcon size={22} />
             </Fab>
           : <Fab
               label="Punch"
@@ -125,7 +126,7 @@ const App: FC = () => {
               background={sidebarProps.accent}
               className="fab--secondary"
             >
-              <span aria-hidden="true" style={{ fontSize: '22px', lineHeight: 1 }}>⏱️</span>
+              <PunchIcon size={22} />
             </Fab>
       )}
 

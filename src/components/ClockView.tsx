@@ -2,6 +2,7 @@ import { Fragment, useEffect, type CSSProperties, type FC } from 'react'
 import type { ClockCalendarVM, ClockMonthDayVM, ClockViewProps } from '../types'
 import { addDays, iso, parseISO } from '../lib/dates'
 import { useIsMobile } from '../hooks/useMediaQuery'
+import PunchIcon from './PunchIcon'
 
 const statLabelStyle: CSSProperties = {
   fontSize: '10.5px',
@@ -92,7 +93,7 @@ const PunchButton: FC<{ timerStartMs: number | null; accent: string; onPunch: ()
         whiteSpace: 'nowrap', minHeight: '34px',
       }}
     >
-      <span style={{ fontSize: '14px', lineHeight: 1 }} aria-hidden="true">⏱️</span>
+      <PunchIcon size={15} />
       Punch
     </button>
   )
