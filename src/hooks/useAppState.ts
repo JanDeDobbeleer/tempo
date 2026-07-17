@@ -67,6 +67,9 @@ function colorForEntry(
   projById: Record<string, Project>,
   custById: Record<string, Customer>,
 ): string {
+  if (entry.kind === 'holiday') {
+    return '#b7bec7';
+  }
   return entry.kind === 'service' || entry.kind === 'customer'
     ? colorForServiceEntry(entry, custById)
     : colorForProject(projById[entry.projectId ?? ''], custById);
@@ -1083,7 +1086,9 @@ export function useAppState(settings: AppSettings): AppViewModel {
 
     if (modal.type === 'entry') {
       const form = modal.form as EntryForm;
-      const minutes = hoursToMinutes(form.hours);
+      const hpdNow = getHoursPerDay(settingsRef.current);
+      // Holidays are always a fixed full day — no rate, no project/service/customer.
+      const minutes = form.kind === 'holiday' ? Math.round(hpdNow * 60) : hoursToMinutes(form.hours);
       const invalidProject = form.kind === 'project' && !form.projectId;
       const invalidService = form.kind === 'service' && (!form.serviceId || !form.customerId);
       const parsedAmount = Number(form.amount);
@@ -1094,7 +1099,6 @@ export function useAppState(settings: AppSettings): AppViewModel {
 
       // Budget cap enforcement: block new project entries that would meet or exceed the remaining budget.
       if (modal.isNew && form.kind === 'project' && form.projectId) {
-        const hpdNow = getHoursPerDay(settingsRef.current);
         const project = stateRef.current.projects.find((p) => p.id === form.projectId);
         if (project && (project.budget ?? 0) > 0) {
           const budget = project.budget!;
@@ -1540,6 +1544,9 @@ export function useAppState(settings: AppSettings): AppViewModel {
   }, [state.customers]);
 
   const entryEarn = useCallback((entry: Entry) => {
+    if (entry.kind === 'holiday') {
+      return 0;
+    }
     if (entry.kind === 'customer') {
       return entry.amount ?? 0;
     }
@@ -1787,7 +1794,9 @@ export function useAppState(settings: AppSettings): AppViewModel {
         ? `project:${entry.projectId}`
         : entry.kind === 'service'
           ? `service:${entry.serviceId}:${entry.customerId}`
-          : `customer:${entry.customerId}`;
+          : entry.kind === 'holiday'
+            ? 'holiday'
+            : `customer:${entry.customerId}`;
 
     const filterKey = ctx.calendarFilterKey;
     const matchesFilter = (entry: Entry) => !filterKey || entryKey(entry) === filterKey;
@@ -1853,6 +1862,7 @@ export function useAppState(settings: AppSettings): AppViewModel {
           isWeekend: day >= 5,
           isSelected: ctx.selectedClockDayISO === cellISO,
           hasData: cellMinutes > 0,
+          isHoliday: cellEntries.some((entry) => entry.kind === 'holiday'),
           hoursLabel: cellMinutes > 0 ? fmtH(cellMinutes) : '',
           earnLabel: cellMinutes / 60 >= shadeCap * 0.6 && cellEarn > 0 ? fmtEUR(cellEarn) : '',
           pips: pipColors,
@@ -1889,12 +1899,16 @@ export function useAppState(settings: AppSettings): AppViewModel {
               ? (ctx.projById[entry.projectId ?? '']?.name || '—')
               : entry.kind === 'service'
                 ? (ctx.serviceById[entry.serviceId ?? '']?.name || '—')
-                : customerName,
+                : entry.kind === 'holiday'
+                  ? 'Holiday'
+                  : customerName,
             subLabel: entry.kind === 'project'
               ? (ctx.custById[ctx.projById[entry.projectId ?? '']?.customerId ?? '']?.name || '—')
               : entry.kind === 'service'
                 ? customerName
-                : 'Flat fee',
+                : entry.kind === 'holiday'
+                  ? 'Full day'
+                  : 'Flat fee',
             dotColor: colorForEntry(entry, ctx.projById, ctx.custById),
             hoursLabel: entry.kind === 'customer' ? '' : fmtH(entry.minutes),
             earnLabel: ctx.entryEarn(entry) > 0 ? fmtEUR(ctx.entryEarn(entry)) : '',
@@ -1931,12 +1945,16 @@ export function useAppState(settings: AppSettings): AppViewModel {
             ? (ctx.projById[entry.projectId ?? '']?.name || '—')
             : entry.kind === 'service'
               ? (ctx.serviceById[entry.serviceId ?? '']?.name || '—')
-              : customerName,
+              : entry.kind === 'holiday'
+                ? 'Holiday'
+                : customerName,
           subLabel: entry.kind === 'project'
             ? (ctx.custById[ctx.projById[entry.projectId ?? '']?.customerId ?? '']?.name || '—')
             : entry.kind === 'service'
               ? customerName
-              : 'Flat fee',
+              : entry.kind === 'holiday'
+                ? 'Full day'
+                : 'Flat fee',
           dotColor: colorForEntry(entry, ctx.projById, ctx.custById),
           minutes: 0,
           earn: 0,
@@ -2199,6 +2217,9 @@ export function useAppState(settings: AppSettings): AppViewModel {
         }
         if (kind === 'customer' && entryForm && !entryForm.customerId) {
           updateForm('customerId', ctx.S.customers[0]?.id || '');
+        }
+        if (kind === 'holiday') {
+          updateForm('hours', String(ctx.hpd));
         }
       },
       onFormProject: (event: ChangeEvent<HTMLSelectElement>) => updateForm('projectId', event.target.value),

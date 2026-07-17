@@ -51,12 +51,12 @@ export interface AttachmentRef {
 export interface Entry {
   id: string;
   date: string;        // ISO yyyy-mm-dd
-  kind: 'project' | 'service' | 'customer';
+  kind: 'project' | 'service' | 'customer' | 'holiday';
   projectId: string | null;
   serviceId: string | null;
   customerId: string | null;
   // Flat fee for a 'customer' entry, tied only to that specific entry (no
-  // rate table, no proration). Null for 'project'/'service' entries.
+  // rate table, no proration). Null for 'project'/'service'/'holiday' entries.
   amount: number | null;
   minutes: number;      // logged duration in minutes
   comment: string;
@@ -70,7 +70,7 @@ export type ModalType = 'entry' | 'customer';
 
 export interface EntryForm {
   id: string | null;
-  kind: 'project' | 'service' | 'customer';
+  kind: 'project' | 'service' | 'customer' | 'holiday';
   projectId: string;
   serviceId: string;
   customerId: string;
@@ -221,6 +221,7 @@ export interface ClockMonthDayVM {
   isWeekend: boolean;
   isSelected: boolean;
   hasData: boolean;
+  isHoliday: boolean;        // true when a 'holiday' entry is logged this day
   hoursLabel: string;        // '' when empty
   earnLabel: string;         // '' when nothing earned
   pips: string[];            // dot colors for distinct contexts logged that day
@@ -396,7 +397,7 @@ export interface ModalProps {
   textareaStyle: CSSProperties;
   labelStyle: CSSProperties;
   btnPrimaryLg: CSSProperties;
-  onFormKind: (kind: 'project' | 'service' | 'customer') => void;
+  onFormKind: (kind: 'project' | 'service' | 'customer' | 'holiday') => void;
   onFormProject: (e: ChangeEvent<HTMLSelectElement>) => void;
   onFormService: (e: ChangeEvent<HTMLSelectElement>) => void;
   onFormEntryCustomer: (e: ChangeEvent<HTMLSelectElement>) => void;

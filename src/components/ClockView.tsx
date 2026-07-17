@@ -105,13 +105,13 @@ const CalCell: FC<{ day: ClockMonthDayVM; accent: string }> = ({ day, accent }) 
   return (
     <button
       type="button"
-      className="cal-cell"
+      className={`cal-cell${day.isHoliday ? ' cal-cell--holiday' : ''}`}
       onClick={day.onClick}
       disabled={isOther}
       title={day.title}
       style={{
         aspectRatio: '1.05',
-        border: day.isSelected ? `1.5px solid ${accent}` : '1px solid #eef0f3',
+        border: day.isSelected ? `1.5px solid ${accent}` : (day.isHoliday ? '1px solid #dde1e6' : '1px solid #eef0f3'),
         boxShadow: day.isSelected ? `0 0 0 3px ${accent}22` : 'none',
         borderRadius: '10px',
         padding: '8px',
@@ -119,7 +119,7 @@ const CalCell: FC<{ day: ClockMonthDayVM; accent: string }> = ({ day, accent }) 
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        background: !day.hasData && day.isWeekend ? '#f5f6f8' : '#fff',
+        background: day.isHoliday ? undefined : (!day.hasData && day.isWeekend ? '#f5f6f8' : '#fff'),
         opacity: isOther ? 0.34 : 1,
         animationName: isOther ? 'none' : undefined,
         textAlign: 'left',

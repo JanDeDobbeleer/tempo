@@ -37,6 +37,9 @@ export function entryEarnValue(
   service: Service | undefined,
   hoursPerDay: number,
 ): number {
+  if (entry.kind === 'holiday') {
+    return 0;
+  }
   if (entry.kind === 'customer') {
     return entry.amount ?? 0;
   }
@@ -120,6 +123,9 @@ export function aggregateBy(
   const buckets = new Map<string, EarningsGroup>();
 
   entries.forEach((entry) => {
+    if (entry.kind === 'holiday') {
+      return;
+    }
     const project = projById[entry.projectId ?? ''];
     const service = serviceById[entry.serviceId ?? ''];
     const entryCustomerId = entry.kind === 'project' ? project?.customerId : (entry.customerId ?? undefined);
@@ -236,6 +242,9 @@ export function buildChartData(
   };
 
   entries.forEach(entry => {
+    if (entry.kind === 'holiday') {
+      return;
+    }
     const xKey = granularity === 'day' ? entry.date : entry.date.slice(0, 7);
     const proj = projById[entry.projectId ?? ''];
     const svc = svcById[entry.serviceId ?? ''];

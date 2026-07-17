@@ -83,7 +83,7 @@ const Modal: FC<ModalProps> = ({
             <>
               <div>
                 <label style={labelStyle}>Type</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
                   <button
                     type="button"
                     style={{
@@ -129,9 +129,25 @@ const Modal: FC<ModalProps> = ({
                   >
                     Customer
                   </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...inputStyle,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: entryForm.kind === 'holiday' ? '#0d1e2e' : '#fff',
+                      color: entryForm.kind === 'holiday' ? '#fff' : '#0d1e2e',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => onFormKind('holiday')}
+                  >
+                    Holiday
+                  </button>
                 </div>
               </div>
 
+              {entryForm.kind !== 'holiday' && (
               <div>
                 {entryForm.kind === 'project' ? (
                   <>
@@ -225,6 +241,7 @@ const Modal: FC<ModalProps> = ({
                   </div>
                 )}
               </div>
+              )}
 
               <div>
                 <label style={labelStyle}>When</label>
@@ -290,6 +307,18 @@ const Modal: FC<ModalProps> = ({
                 </div>
               )}
 
+              {entryForm.kind === 'holiday' ? (
+                <div style={{
+                  padding: '9px 12px',
+                  background: '#f5f6f8',
+                  border: '1px solid rgba(192, 200, 208, 0.55)',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  color: '#6b7280',
+                }}>
+                  Holidays are always logged as a full day.
+                </div>
+              ) : (
               <div>
                 <label style={labelStyle}>Hours</label>
                 <input
@@ -325,6 +354,7 @@ const Modal: FC<ModalProps> = ({
                   ))}
                 </div>
               </div>
+              )}
 
               <div>
                 <label style={labelStyle}>What did you work on?</label>

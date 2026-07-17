@@ -216,6 +216,16 @@ textarea:focus-visible {
   z-index: 2;
 }
 
+.cal-cell--holiday {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #e9ebef,
+    #e9ebef 6px,
+    #dde0e5 6px,
+    #dde0e5 12px
+  ) !important;
+}
+
 .cal-panel-body {
   animation: cal-panel-in 180ms ease;
 }
